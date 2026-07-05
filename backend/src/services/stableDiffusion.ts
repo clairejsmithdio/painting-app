@@ -115,7 +115,7 @@ async function generateImage(
       return {
         success: true,
         styleId,
-        label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+        name: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
         imageUrl: generatePlaceholderImage(styleId),
       };
     }
@@ -147,7 +147,7 @@ async function generateImage(
     return {
       success: true,
       styleId,
-      label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+      name: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
       imageUrl,
     };
   } catch (error) {
@@ -157,7 +157,7 @@ async function generateImage(
     return {
       success: false,
       styleId,
-      label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+      name: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
       error: errorMsg,
     };
   }
