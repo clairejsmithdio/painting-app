@@ -1,0 +1,52 @@
+{
+  "brands": [
+    {
+      "id": "winsor-newton",
+      "label": "Winsor & Newton",
+      "colors": [
+        { "name": "Alizarin Crimson", "hex": "#E71C3C", "pigment": "PR83" },
+        { "name": "Cadmium Yellow", "hex": "#FFF600", "pigment": "PY35" },
+        { "name": "Ultramarine Blue", "hex": "#424FA3", "pigment": "PB29" },
+        { "name": "Titanium White", "hex": "#FFFFFF", "pigment": "PW6" },
+        { "name": "Burnt Sienna", "hex": "#8B4513", "pigment": "PR101" },
+        { "name": "Viridian", "hex": "#40826D", "pigment": "PG18" },
+        { "name": "Cadmium Red", "hex": "#E41E3D", "pigment": "PR108" },
+        { "name": "Raw Sienna", "hex": "#A0826D", "pigment": "PY43" },
+        { "name": "Cerulean Blue", "hex": "#007BA7", "pigment": "PB35" },
+        { "name": "Lemon Yellow", "hex": "#FFFB00", "pigment": "PY3" }
+      ]
+    },
+    {
+      "id": "gamblin",
+      "label": "Gamblin",
+      "colors": [
+        { "name": "Alizarin", "hex": "#E71C3C", "pigment": "PR83" },
+        { "name": "Cadmium Yellow Light", "hex": "#FFED4E", "pigment": "PY35" },
+        { "name": "Prussian Blue", "hex": "#003580", "pigment": "PB27" },
+        { "name": "Flake White", "hex": "#FFFFFF", "pigment": "PW1" },
+        { "name": "Raw Umber", "hex": "#8B6914", "pigment": "PBr7" },
+        { "name": "Viridian Hue", "hex": "#3BA89F", "pigment": "PG18" },
+        { "name": "Pyrrole Red", "hex": "#C41E3A", "pigment": "PR254" },
+        { "name": "Yellow Ochre", "hex": "#D4A76A", "pigment": "PY43" },
+        { "name": "Ultramarine", "hex": "#424FA3", "pigment": "PB29" },
+        { "name": "Cadmium Yellow Medium", "hex": "#FFF600", "pigment": "PY35" }
+      ]
+    },
+    {
+      "id": "golden",
+      "label": "Golden",
+      "colors": [
+        { "name": "Alizarin Crimson Hue", "hex": "#D71456", "pigment": "PR83" },
+        { "name": "Cadmium Yellow Deep", "hex": "#F5B800", "pigment": "PY35" },
+        { "name": "Ultramarine Blue", "hex": "#424FA3", "pigment": "PB29" },
+        { "name": "Titanium White", "hex": "#FFFFFF", "pigment": "PW6" },
+        { "name": "Burnt Sienna", "hex": "#8B4513", "pigment": "PR101" },
+        { "name": "Pthalo Green", "hex": "#0D7649", "pigment": "PG7" },
+        { "name": "Naphthol Red", "hex": "#D21D3A", "pigment": "PR112" },
+        { "name": "Yellow Ochre", "hex": "#D4A76A", "pigment": "PY43" },
+        { "name": "Cerulean Blue Hue", "hex": "#0099FF", "pigment": "PB35" },
+        { "name": "Cadmium Yellow Light", "hex": "#FFED4E", "pigment": "PY35" }
+      ]
+    }
+  ]
+}
