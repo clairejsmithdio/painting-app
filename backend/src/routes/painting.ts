@@ -9,7 +9,8 @@ import {
 export const paintingRoutes = express.Router();
 
 interface PaintingRequest {
-  imageBase64: string;
+  imageBase64?: string;
+  image?: string;
   imageUrl?: string;
 }
 
@@ -20,13 +21,14 @@ interface ColorMixingRequest {
 
 paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
   try {
-    const { imageBase64, imageUrl } = req.body as PaintingRequest;
+    const { imageBase64, image, imageUrl } = req.body as PaintingRequest;
+    const base64Data = imageBase64 || image;
 
-    if (!imageBase64 && !imageUrl) {
-      return res.status(400).json({ error: 'Either imageBase64 or imageUrl is required' });
+    if (!base64Data && !imageUrl) {
+      return res.status(400).json({ error: 'Either imageBase64, image, or imageUrl is required' });
     }
 
-    const imageBuffer = imageBase64 ? Buffer.from(imageBase64, 'base64') : undefined;
+    const imageBuffer = base64Data ? Buffer.from(base64Data, 'base64') : undefined;
 
     const results = await visualizeImage(imageBuffer || imageUrl);
     res.json(results);
