@@ -22,10 +22,10 @@ export const Visualizer: React.FC = () => {
 
   const visualizeMutation = useMutation<VisualizationResponse, Error, string>({
     mutationFn: async (imageBase64: string) => {
-      const response = await axios.post('http://localhost:3002/api/painting/visualize', {
+      const response = await axios.post<VisualizationResponse>('http://localhost:3002/api/painting/visualize', {
         imageBase64,
       });
-      return response.data;
+      return response.data as VisualizationResponse;
     },
   });
 
