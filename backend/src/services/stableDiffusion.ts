@@ -182,8 +182,7 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
 
   return {
     styles: results.map((r) => ({
-      id: r.styleId || 'unknown',
-      label: r.label || 'Unknown',
+      name: r.name || 'Unknown',
       imageUrl: r.imageUrl || '',
       error: r.error,
     })),
