@@ -3,15 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Lazy initialize Supabase client - read env vars at request time
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('Warning: Supabase credentials not configured');
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('Warning: Supabase credentials not configured');
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseKey);
 }
-
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 interface CreateBoardRequest {
   userId: string;
@@ -27,6 +30,7 @@ interface CreateBoardRequest {
 // Create a new board
 router.post('/boards', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
@@ -71,6 +75,7 @@ router.post('/boards', async (req: Request, res: Response) => {
 // Get all boards (with pagination)
 router.get('/boards', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
@@ -82,7 +87,7 @@ router.get('/boards', async (req: Request, res: Response) => {
 
     const { data, error, count } = await supabase
       .from('boards')
-      .select('*, profiles(username, avatar_url)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -109,6 +114,7 @@ router.get('/boards', async (req: Request, res: Response) => {
 // Get single board with comments and likes count
 router.get('/boards/:id', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
@@ -117,7 +123,7 @@ router.get('/boards/:id', async (req: Request, res: Response) => {
 
     const { data: board, error: boardError } = await supabase
       .from('boards')
-      .select('*, profiles(username, avatar_url)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -129,7 +135,7 @@ router.get('/boards/:id', async (req: Request, res: Response) => {
     // Get comments
     const { data: comments } = await supabase
       .from('board_comments')
-      .select('*, profiles(username, avatar_url)')
+      .select('*')
       .eq('board_id', id)
       .order('created_at', { ascending: false });
 
@@ -156,6 +162,7 @@ router.get('/boards/:id', async (req: Request, res: Response) => {
 // Like a board
 router.post('/boards/:id/like', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
@@ -194,6 +201,7 @@ router.post('/boards/:id/like', async (req: Request, res: Response) => {
 // Unlike a board
 router.post('/boards/:id/unlike', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
@@ -229,6 +237,7 @@ router.post('/boards/:id/unlike', async (req: Request, res: Response) => {
 // Add comment to board
 router.post('/boards/:id/comments', async (req: Request, res: Response) => {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
     }
