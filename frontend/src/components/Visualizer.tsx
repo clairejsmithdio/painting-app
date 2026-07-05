@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, UseMutationResult } from '@tanstack/react-query';
 import axios from 'axios';
 import { ImageUpload } from './ImageUpload';
 import { StyleResults } from './StyleResults';
@@ -20,7 +20,7 @@ export const Visualizer: React.FC = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
-  const visualizeMutation = useMutation<VisualizationResponse, Error, string>({
+  const visualizeMutation: UseMutationResult<VisualizationResponse, Error, string> = useMutation<VisualizationResponse, Error, string>({
     mutationFn: async (imageBase64: string) => {
       const response = await axios.post<VisualizationResponse>('http://localhost:3002/api/painting/visualize', {
         imageBase64,
@@ -69,11 +69,6 @@ export const Visualizer: React.FC = () => {
           <p className="text-palette-navy text-sm mt-2">
             This may take 1-2 minutes on first load
           </p>
-          {visualizeMutation.data && visualizeMutation.data.processingTime && (
-            <p className="text-palette-teal text-sm mt-3 font-medium">
-              ✓ Processed in {(visualizeMutation.data as VisualizationResponse).processingTime}ms
-            </p>
-          )}
         </div>
       )}
 
