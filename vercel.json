@@ -1,4 +1,0 @@
-{
-  "buildCommand": "npm install -g create-react-app && cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/build"
-}
