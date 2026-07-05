@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { ImageUpload } from './ImageUpload';
+import { getApiUrl } from '../utils/api';
 
 interface Brand {
   id: string;
@@ -41,7 +42,7 @@ export const ColorMixer: React.FC = () => {
   const { data: brandsData } = useQuery({
     queryKey: ['paintBrands'],
     queryFn: async () => {
-      const response = await axios.get('http://localhost:3002/api/painting/paint-brands');
+      const response = await axios.get(getApiUrl('/painting/paint-brands'));
       return response.data;
     },
   });
@@ -53,7 +54,7 @@ export const ColorMixer: React.FC = () => {
   >({
     mutationFn: async (imageBase64: string) => {
       const response = await axios.post(
-        'http://localhost:3002/api/painting/extract-colors',
+        getApiUrl('/painting/extract-colors'),
         { imageBase64 }
       );
       return response.data;
@@ -66,7 +67,7 @@ export const ColorMixer: React.FC = () => {
 
   const mixColorsMutation = useMutation<ColorResult, Error, string>({
     mutationFn: async (targetColor: string) => {
-      const response = await axios.post('http://localhost:3002/api/painting/mix-colors', {
+      const response = await axios.post(getApiUrl('/painting/mix-colors'), {
         targetColor,
         brandId: selectedBrand,
       });

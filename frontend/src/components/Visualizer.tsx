@@ -3,6 +3,7 @@ import { useMutation, UseMutationResult } from '@tanstack/react-query';
 import axios from 'axios';
 import { ImageUpload } from './ImageUpload';
 import { StyleResults } from './StyleResults';
+import { getApiUrl } from '../utils/api';
 
 interface StyleResult {
   id: string;
@@ -22,7 +23,7 @@ export const Visualizer: React.FC = () => {
 
   const visualizeMutation: UseMutationResult<VisualizationResponse, Error, string> = useMutation<VisualizationResponse, Error, string>({
     mutationFn: async (imageBase64: string) => {
-      const response = await axios.post<VisualizationResponse>('http://localhost:3002/api/painting/visualize', {
+      const response = await axios.post<VisualizationResponse>(getApiUrl('/painting/visualize'), {
         imageBase64,
       });
       return response.data as VisualizationResponse;
