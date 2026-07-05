@@ -69,9 +69,9 @@ export const Visualizer: React.FC = () => {
           <p className="text-palette-navy text-sm mt-2">
             This may take 1-2 minutes on first load
           </p>
-          {visualizeMutation.data && (
+          {visualizeMutation.data && visualizeMutation.data.processingTime && (
             <p className="text-palette-teal text-sm mt-3 font-medium">
-              ✓ Processed in {visualizeMutation.data.processingTime}ms
+              ✓ Processed in {(visualizeMutation.data as VisualizationResponse).processingTime}ms
             </p>
           )}
         </div>
