@@ -71,12 +71,54 @@ interface ApiResponse {
   processingTime?: number;
 }
 
+// Generate a deterministic placeholder image based on style ID
+function generatePlaceholderImage(styleId: string): string {
+  const colors: { [key: string]: string } = {
+    watercolor: 'A8D5FF',
+    oil: 'D4A574',
+    ink: '2C3E50',
+    acrylic: 'FF6B9D',
+    impressionist: 'E6B89C',
+    abstract: '8B4789',
+    pastel: 'F4A9B5',
+    gouache: '6C9FB5',
+    charcoal: '3A3A3A',
+    digital: '7B68EE',
+  };
+
+  const color = colors[styleId] || 'CCCCCC';
+  const svg = `<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad${styleId}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#${color};stop-opacity:0.8" />
+        <stop offset="100%" style="stop-color:#${color};stop-opacity:0.3" />
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="url(#grad${styleId})"/>
+    <text x="256" y="256" font-size="48" fill="#333" text-anchor="middle" dominant-baseline="middle" font-family="Georgia, serif">${PAINTING_STYLES.find(s => s.id === styleId)?.label || 'Style'}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
 async function generateImage(
   prompt: string,
   styleId: string
 ): Promise<VisualizationResult> {
   try {
     console.log(`[${styleId}] Generating: ${prompt}`);
+
+    // Mock mode for local development
+    if (process.env.MOCK_API === 'true') {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`✅ [${styleId}] Generated (mock mode)`);
+      return {
+        success: true,
+        styleId,
+        label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+        imageUrl: generatePlaceholderImage(styleId),
+      };
+    }
 
     const headers: any = {
       'Content-Type': 'application/json',

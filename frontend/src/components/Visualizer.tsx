@@ -44,29 +44,37 @@ export const Visualizer: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Upload Section */}
-      <div className="bg-white rounded-xl shadow-sm p-8 border border-palette-canvas-dark">
-        <h3 className="text-2xl font-display font-bold text-palette-navy-dark mb-2">
-          Upload Your Sketch
-        </h3>
-        <p className="text-palette-navy mb-6">
-          Choose an image and watch it transform into different painting styles
-        </p>
-        <ImageUpload
-          onImageSelected={handleImageSelected}
-          isLoading={visualizeMutation.isPending}
-          previewUrl={uploadedImage}
-          fileName={uploadedFileName}
-        />
+      <div className="bg-white rounded-2xl p-8 border border-palette-canvas-dark shadow-md hover:shadow-lg transition-shadow">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-3xl font-display font-bold text-palette-navy-dark mb-1">
+              Upload Your Sketch
+            </h3>
+            <p className="text-palette-navy text-base leading-relaxed">
+              Choose an image and watch it transform into different painting styles
+            </p>
+          </div>
+        </div>
+        <div className="mt-6">
+          <ImageUpload
+            onImageSelected={handleImageSelected}
+            isLoading={visualizeMutation.isPending}
+            previewUrl={uploadedImage}
+            fileName={uploadedFileName}
+          />
+        </div>
       </div>
 
       {/* Loading State */}
       {visualizeMutation.isPending && (
-        <div className="bg-palette-coral-light bg-opacity-10 border border-palette-coral rounded-xl p-8 text-center">
-          <div className="animate-spin inline-block w-10 h-10 border-4 border-palette-coral-light border-t-palette-coral rounded-full mb-4"></div>
-          <p className="text-palette-navy-dark font-semibold text-lg">
-            Generating painting styles...
+        <div className="bg-gradient-to-br from-palette-coral-light to-palette-coral bg-opacity-5 border-2 border-palette-coral border-opacity-30 rounded-2xl p-12 text-center backdrop-blur-sm">
+          <div className="flex justify-center mb-6">
+            <div className="animate-spin inline-block w-12 h-12 border-4 border-palette-canvas-dark border-t-palette-coral rounded-full"></div>
+          </div>
+          <p className="text-palette-navy-dark font-display text-xl font-bold mb-2">
+            ✨ Generating painting styles...
           </p>
-          <p className="text-palette-navy text-sm mt-2">
+          <p className="text-palette-navy text-sm opacity-75">
             This may take 1-2 minutes on first load
           </p>
         </div>
@@ -74,34 +82,41 @@ export const Visualizer: React.FC = () => {
 
       {/* Error State */}
       {visualizeMutation.isError && (
-        <div className="bg-palette-red bg-opacity-10 rounded-xl p-8 border border-palette-red">
-          <p className="text-palette-red font-semibold text-lg">Error generating styles</p>
-          <p className="text-palette-navy text-sm mt-2">
-            {visualizeMutation.error?.message || 'Unknown error occurred'}
-          </p>
-          <button
-            onClick={handleReset}
-            className="mt-4 px-6 py-2 bg-palette-red text-white rounded-lg hover:bg-palette-coral transition font-medium"
-          >
-            Try Again
-          </button>
+        <div className="bg-gradient-to-br from-palette-red from-opacity-5 to-palette-coral-light to-opacity-5 rounded-2xl p-8 border-2 border-palette-red border-opacity-40">
+          <div className="flex items-start gap-4">
+            <div className="text-3xl flex-shrink-0">⚠️</div>
+            <div className="flex-1">
+              <p className="text-palette-red font-display font-bold text-lg mb-1">Unable to generate styles</p>
+              <p className="text-palette-navy text-sm mb-4">
+                {visualizeMutation.error?.message || 'An unexpected error occurred'}
+              </p>
+              <button
+                onClick={handleReset}
+                className="px-6 py-2 bg-palette-red text-white rounded-lg hover:bg-palette-red hover:opacity-90 transition font-semibold"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Results */}
       {visualizeMutation.data && !visualizeMutation.isPending && (
-        <div>
-          <h3 className="text-2xl font-display font-bold text-palette-navy-dark mb-2">
-            Your Painting Styles
-          </h3>
-          <p className="text-palette-navy mb-6">
-            Download any style or start again with a new image
-          </p>
+        <div className="animate-fadeIn">
+          <div className="mb-8">
+            <h3 className="text-3xl font-display font-bold text-palette-navy-dark mb-2">
+              ✓ Your Painting Styles
+            </h3>
+            <p className="text-palette-navy text-base">
+              Download any style or start again with a new image
+            </p>
+          </div>
           <StyleResults styles={visualizeMutation.data.styles} />
-          <div className="mt-8 flex justify-center">
+          <div className="mt-10 flex justify-center">
             <button
               onClick={handleReset}
-              className="px-8 py-3 bg-palette-coral text-white rounded-lg hover:bg-palette-coral-dark transition font-semibold shadow-md"
+              className="px-8 py-3 bg-palette-coral text-white rounded-lg hover:bg-palette-coral-dark transition-all font-semibold shadow-lg hover:shadow-xl"
             >
               Upload Another Image
             </button>
