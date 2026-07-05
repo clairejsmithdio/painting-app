@@ -1,0 +1,142 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-coral: var(--coral);
+  --color-navy: var(--navy);
+  --color-teal: var(--teal);
+  --color-canvas: var(--canvas);
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* Palette brand */
+  --coral: #FF6B4A;
+  --navy: #1D3557;
+  --teal: #06A77D;
+  --canvas: #F5F1E8;
+
+  --background: var(--canvas);
+  --foreground: var(--navy);
+  --card: #ffffff;
+  --card-foreground: var(--navy);
+  --popover: #ffffff;
+  --popover-foreground: var(--navy);
+  --primary: var(--coral);
+  --primary-foreground: #ffffff;
+  --secondary: var(--navy);
+  --secondary-foreground: #ffffff;
+  --muted: #EFEAE0;
+  --muted-foreground: #6B7280;
+  --accent: var(--teal);
+  --accent-foreground: #ffffff;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: #ffffff;
+  --border: rgba(29, 53, 87, 0.12);
+  --input: rgba(29, 53, 87, 0.15);
+  --ring: var(--coral);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility bg-coral { background-color: var(--coral); }
+@utility text-coral { color: var(--coral); }
+@utility bg-navy { background-color: var(--navy); }
+@utility text-navy { color: var(--navy); }
+@utility bg-teal { background-color: var(--teal); }
+@utility text-teal { color: var(--teal); }
+@utility bg-canvas { background-color: var(--canvas); }
+
+@utility card-elevated {
+  background: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(29,53,87,0.04), 0 8px 24px -12px rgba(29,53,87,0.12);
+  transition: transform 300ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 300ms;
+}
+@utility card-elevated-hover {
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 2px 4px rgba(29,53,87,0.05), 0 20px 40px -16px rgba(29,53,87,0.22);
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility animate-fade-up {
+  animation: fadeUp 500ms cubic-bezier(0.2,0.8,0.2,1) both;
+}
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@utility shimmer {
+  background: linear-gradient(90deg, #EFEAE0 0%, #F7F3EA 50%, #EFEAE0 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+@media print {
+  header, aside, .card-elevated > div:last-child, footer, nav {
+    display: none !important;
+  }
+  .card-elevated {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
