@@ -176,9 +176,12 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
     console.log('Using Replicate Stable Diffusion');
   }
 
-  const results = await Promise.all(
-    PAINTING_STYLES.map((style) => generateImage(style.prompt, style.id))
-  );
+  const results = [];
+  for (const style of PAINTING_STYLES) {
+    const result = await generateImage(style.prompt, style.id);
+    results.push(result);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
 
   const processingTime = Date.now() - startTime;
   console.log(`\n⏱️  Total processing time: ${processingTime}ms`);
