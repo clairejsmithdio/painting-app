@@ -137,7 +137,7 @@ async function generateImage(
     };
 
     if (imageBase64) {
-      requestBody.image = imageBase64;
+      requestBody.input_image = imageBase64;
     }
 
     const submitResponse = await axios.post(
