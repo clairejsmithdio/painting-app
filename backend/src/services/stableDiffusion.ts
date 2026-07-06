@@ -4,52 +4,52 @@ const PAINTING_STYLES = [
   {
     id: 'watercolor',
     label: 'Watercolor',
-    prompt: 'soft watercolor painting, delicate wet washes, translucent colors, artistic and flowing, traditional watercolor technique',
+    prompt: 'transform into a soft watercolor painting, delicate wet washes, translucent colors, artistic and flowing, traditional watercolor technique',
   },
   {
     id: 'oil',
     label: 'Oil Painting',
-    prompt: 'classical oil painting on canvas, rich impasto texture, museum quality, master painter style, warm golden light',
+    prompt: 'transform into a classical oil painting on canvas, rich impasto texture, museum quality, master painter style, warm golden light',
   },
   {
     id: 'ink',
     label: 'Ink Drawing',
-    prompt: 'black ink drawing, expressive line work, sketch style, artistic illustration, fine art pen work',
+    prompt: 'transform into a black ink drawing, expressive line work, sketch style, artistic illustration, fine art pen work',
   },
   {
     id: 'acrylic',
     label: 'Acrylic',
-    prompt: 'vibrant acrylic painting, bold brushstrokes, contemporary art, dynamic colors, artistic texture',
+    prompt: 'transform into a vibrant acrylic painting, bold brushstrokes, contemporary art, dynamic colors, artistic texture',
   },
   {
     id: 'impressionist',
     label: 'Impressionist',
-    prompt: 'impressionist oil painting, Claude Monet style, loose brushstrokes, soft focus, atmospheric light, 19th century art',
+    prompt: 'transform into an impressionist oil painting, Claude Monet style, loose brushstrokes, soft focus, atmospheric light, 19th century art',
   },
   {
     id: 'abstract',
     label: 'Abstract Modern',
-    prompt: 'abstract modern painting, geometric shapes, bold colors, contemporary art, expressionist style, paint splatter',
+    prompt: 'transform into an abstract modern painting, geometric shapes, bold colors, contemporary art, expressionist style, paint splatter',
   },
   {
     id: 'pastel',
     label: 'Soft Pastel',
-    prompt: 'soft pastel drawing, blended colors, gentle hues, artistic texture, fine art pastel painting',
+    prompt: 'transform into a soft pastel drawing, blended colors, gentle hues, artistic texture, fine art pastel painting',
   },
   {
     id: 'gouache',
     label: 'Gouache',
-    prompt: 'gouache painting, opaque watercolor, matte finish, bold colors, contemporary illustration style',
+    prompt: 'transform into a gouache painting, opaque watercolor, matte finish, bold colors, contemporary illustration style',
   },
   {
     id: 'charcoal',
     label: 'Charcoal Sketch',
-    prompt: 'charcoal drawing, expressive sketching, dramatic shadows, fine art charcoal, artistic detail',
+    prompt: 'transform into a charcoal drawing, expressive sketching, dramatic shadows, fine art charcoal, artistic detail',
   },
   {
     id: 'digital',
     label: 'Digital Art',
-    prompt: 'digital art painting, digital illustration style, vibrant colors, smooth gradients, contemporary digital painting',
+    prompt: 'transform into a digital art painting, digital illustration style, vibrant colors, smooth gradients, contemporary digital painting',
   },
 ];
 
@@ -121,82 +121,55 @@ async function generateImage(
       };
     }
 
-    const HIGGSFIELD_API_KEY = process.env.HIGGSFIELD_API_KEY;
-    const HIGGSFIELD_SECRET = process.env.HIGGSFIELD_SECRET;
-    if (!HIGGSFIELD_API_KEY || !HIGGSFIELD_SECRET) {
-      throw new Error('HIGGSFIELD_API_KEY or HIGGSFIELD_SECRET not set');
+    const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+    if (!TOGETHER_API_KEY) {
+      throw new Error('TOGETHER_API_KEY not set');
     }
 
-    const authHeader = `Key ${HIGGSFIELD_API_KEY}:${HIGGSFIELD_SECRET}`;
-
-    // Submit generation request
+    // Together AI image-to-image request
     const requestBody: any = {
+      model: 'black-forest-labs/FLUX.1-Kontext-dev',
       prompt,
-      aspect_ratio: '1:1',
-      resolution: '720p',
+      steps: 28,
+      height: 768,
+      width: 768,
     };
 
+    // Add image if provided (image-to-image mode)
     if (imageBase64) {
-      requestBody.input_image = imageBase64;
+      requestBody.image = imageBase64;
+      requestBody.image_strength = 0.7; // Control how much the output differs from input
     }
 
-    const submitResponse = await axios.post(
-      'https://platform.higgsfield.ai/higgsfield-ai/soul/reference',
+    const response = await axios.post(
+      'https://api.together.xyz/v1/images/generations',
       requestBody,
       {
         headers: {
-          Authorization: authHeader,
+          Authorization: `Bearer ${TOGETHER_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
-    const requestId = submitResponse.data.request_id;
-    if (!requestId) {
-      throw new Error('No request_id in response');
+    const imageUrl = response.data.data?.[0]?.url;
+    if (!imageUrl) {
+      throw new Error('No image URL in response');
     }
 
-    console.log(`[${styleId}] Request submitted, polling for completion...`);
+    console.log(`✅ [${styleId}] Generated successfully`);
 
-    // Poll for completion (max 5 minutes)
-    const maxAttempts = 60;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
-
-      const statusResponse = await axios.get(
-        `https://platform.higgsfield.ai/requests/${requestId}/status`,
-        {
-          headers: { Authorization: authHeader },
-          timeout: 30000,
-        }
-      );
-
-      const status = statusResponse.data.status;
-      console.log(`[${styleId}] Status: ${status}`);
-
-      if (status === 'completed') {
-        const imageUrl = statusResponse.data.images?.[0]?.url;
-        if (!imageUrl) {
-          throw new Error('No image URL in completed response');
-        }
-        console.log(`✅ [${styleId}] Generated successfully`);
-        return {
-          success: true,
-          styleId,
-          label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
-          imageUrl,
-        };
-      } else if (status === 'failed' || status === 'nsfw') {
-        throw new Error(`Generation ${status}`);
-      }
-    }
-
-    throw new Error('Generation timeout - exceeded maximum wait time');
+    return {
+      success: true,
+      styleId,
+      label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+      imageUrl,
+    };
   } catch (error) {
     let errorMsg = error instanceof Error ? error.message : 'Unknown error';
     if (axios.isAxiosError(error) && error.response) {
-      console.error(`❌ [${styleId}] Higgsfield error (${error.response.status}):`, error.response.data);
+      console.error(`❌ [${styleId}] Together AI error (${error.response.status}):`, error.response.data);
       errorMsg = `${error.response.status}: ${JSON.stringify(error.response.data)}`;
     } else {
       console.error(`❌ [${styleId}] Error:`, errorMsg);
@@ -218,7 +191,7 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
   if (process.env.MOCK_API === 'true') {
     console.log('Using mock mode');
   } else {
-    console.log('Using Higgsfield API');
+    console.log('Using Together AI (FLUX.1 Kontext)');
   }
 
   const imageBase64 = imageInput instanceof Buffer
@@ -239,7 +212,7 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
     const result = await generateImage(style.prompt, style.id, imageBase64);
     results.push(result);
     if (stylesToGenerate.length > 1) {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced delay since Together AI is faster
     }
   }
 
