@@ -13,9 +13,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type VisualizeStyle = {
-  name: string;
+  id: string;
+  label: string;
   imageUrl: string;
-  description?: string;
+  error?: string;
 };
 
 export type ExtractedColor = {
