@@ -57,7 +57,7 @@ interface VisualizationResult {
   success: boolean;
   imageUrl?: string;
   styleId?: string;
-  name?: string;
+  label?: string;
   error?: string;
 }
 
@@ -115,7 +115,7 @@ async function generateImage(
       return {
         success: true,
         styleId,
-        name: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+        label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
         imageUrl: generatePlaceholderImage(styleId),
       };
     }
@@ -183,7 +183,7 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
   return {
     styles: results.map((r) => ({
       id: r.styleId || '',
-      label: r.name || 'Unknown',
+      label: r.label || 'Unknown',
       imageUrl: r.imageUrl || '',
       error: r.error,
     })),

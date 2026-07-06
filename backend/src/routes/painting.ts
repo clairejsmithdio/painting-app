@@ -30,7 +30,7 @@ paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
 
     const imageBuffer = base64Data ? Buffer.from(base64Data, 'base64') : undefined;
 
-    const results = await visualizeImage(imageBuffer || imageUrl as string);
+    const results = await visualizeImage((imageBuffer || imageUrl)!);
     res.json(results);
   } catch (error) {
     console.error('Visualization error:', error);
