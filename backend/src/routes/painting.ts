@@ -12,6 +12,7 @@ interface PaintingRequest {
   imageBase64?: string;
   image?: string;
   imageUrl?: string;
+  style?: string;
 }
 
 interface ColorMixingRequest {
@@ -21,7 +22,7 @@ interface ColorMixingRequest {
 
 paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
   try {
-    const { imageBase64, image, imageUrl } = req.body as PaintingRequest;
+    const { imageBase64, image, imageUrl, style } = req.body as PaintingRequest;
     const base64Data = imageBase64 || image;
 
     if (!base64Data && !imageUrl) {
@@ -30,7 +31,7 @@ paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
 
     const imageBuffer = base64Data ? Buffer.from(base64Data, 'base64') : undefined;
 
-    const results = await visualizeImage((imageBuffer || imageUrl)!);
+    const results = await visualizeImage((imageBuffer || imageUrl)!, style);
     res.json(results);
   } catch (error) {
     console.error('Visualization error:', error);

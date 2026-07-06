@@ -204,7 +204,7 @@ async function generateImage(
   }
 }
 
-export async function visualizeImage(imageInput: Buffer | string): Promise<ApiResponse> {
+export async function visualizeImage(imageInput: Buffer | string, filterStyle?: string): Promise<ApiResponse> {
   const startTime = Date.now();
 
   console.log('\n🎨 Starting painting style generation...');
@@ -214,11 +214,22 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
     console.log('Using Higgsfield API');
   }
 
+  let stylesToGenerate = PAINTING_STYLES;
+  if (filterStyle) {
+    stylesToGenerate = PAINTING_STYLES.filter((s) => s.id === filterStyle);
+    if (stylesToGenerate.length === 0) {
+      throw new Error(`Style "${filterStyle}" not found`);
+    }
+    console.log(`Generating only style: ${filterStyle}`);
+  }
+
   const results = [];
-  for (const style of PAINTING_STYLES) {
+  for (const style of stylesToGenerate) {
     const result = await generateImage(style.prompt, style.id);
     results.push(result);
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    if (stylesToGenerate.length > 1) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
   }
 
   const processingTime = Date.now() - startTime;
