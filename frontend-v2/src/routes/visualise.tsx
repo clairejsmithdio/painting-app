@@ -57,7 +57,7 @@ function VisualisePage() {
     try {
       const res = await visualizePainting(upload.file, id, hint?.colors);
       const match =
-        res.styles.find((s) => s.name.toLowerCase() === id.toLowerCase()) ?? res.styles[0];
+        res.styles.find((s) => s.label?.toLowerCase() === id.toLowerCase()) ?? res.styles[0];
       if (match) setResults((prev) => ({ ...prev, [id]: match }));
     } catch (err) {
       setError((err as Error).message ?? "Failed to generate style");
