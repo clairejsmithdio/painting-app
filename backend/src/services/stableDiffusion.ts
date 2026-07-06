@@ -120,29 +120,31 @@ async function generateImage(
       };
     }
 
-    const REPLICATE_API_KEY = process.env.REPLICATE_API_KEY;
-    if (!REPLICATE_API_KEY) {
-      throw new Error('REPLICATE_API_KEY not set');
+    const HIGGSFIELD_API_KEY = process.env.HIGGSFIELD_API_KEY;
+    const HIGGSFIELD_SECRET = process.env.HIGGSFIELD_SECRET;
+    if (!HIGGSFIELD_API_KEY || !HIGGSFIELD_SECRET) {
+      throw new Error('HIGGSFIELD_API_KEY or HIGGSFIELD_SECRET not set');
     }
 
     const response = await axios.post(
-      'https://api.replicate.com/v1/predictions',
+      'https://api.higgsfield.ai/v1/predictions',
       {
-        version: 'db21e45d3f7023abc9f30f1dbe034e4b7d2fefdf58c93d39ce9c8a74b7c4b6b5',
-        input: { prompt },
+        prompt,
+        model: 'stable-diffusion-2',
       },
       {
         headers: {
-          Authorization: `Token ${REPLICATE_API_KEY}`,
+          'X-API-Key': HIGGSFIELD_API_KEY,
+          'X-API-Secret': HIGGSFIELD_SECRET,
           'Content-Type': 'application/json',
         },
         timeout: 120000,
       }
     );
 
-    console.log(`[${styleId}] Replicate response:`, response.data);
+    console.log(`[${styleId}] Higgsfield response:`, response.data);
 
-    const imageUrl = response.data.output?.[0];
+    const imageUrl = response.data.imageUrl || response.data.url || response.data.output?.[0];
     if (!imageUrl) {
       throw new Error('No image URL in response');
     }
@@ -180,7 +182,7 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
   if (process.env.MOCK_API === 'true') {
     console.log('Using mock mode');
   } else {
-    console.log('Using Replicate Stable Diffusion');
+    console.log('Using Higgsfield API');
   }
 
   const results = [];
