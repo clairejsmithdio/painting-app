@@ -216,11 +216,11 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
 
   let stylesToGenerate = PAINTING_STYLES;
   if (filterStyle) {
-    stylesToGenerate = PAINTING_STYLES.filter((s) => s.id === filterStyle);
+    stylesToGenerate = PAINTING_STYLES.filter((s) => s.id.toLowerCase() === filterStyle.toLowerCase());
     if (stylesToGenerate.length === 0) {
       throw new Error(`Style "${filterStyle}" not found`);
     }
-    console.log(`Generating only style: ${filterStyle}`);
+    console.log(`Generating only style: ${stylesToGenerate[0].id}`);
   }
 
   const results = [];
