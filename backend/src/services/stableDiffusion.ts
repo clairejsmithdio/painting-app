@@ -120,27 +120,30 @@ async function generateImage(
       };
     }
 
-    const headers: any = {
-      'Content-Type': 'application/json',
-    };
-
-    const HF_API_KEY = process.env.HF_API_KEY;
-    if (HF_API_KEY) {
-      headers['Authorization'] = `Bearer ${HF_API_KEY}`;
+    const REPLICATE_API_KEY = process.env.REPLICATE_API_KEY;
+    if (!REPLICATE_API_KEY) {
+      throw new Error('REPLICATE_API_KEY not set');
     }
 
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2',
-      { inputs: prompt },
+      'https://api.replicate.com/v1/predictions',
       {
-        headers,
-        timeout: 60000,
-        responseType: 'arraybuffer',
+        version: 'db21e45d3f7023abc9f30f1dbe034e4b7d2fefdf58c93d39ce9c8a74b7c4b6b5',
+        input: { prompt },
+      },
+      {
+        headers: {
+          Authorization: `Token ${REPLICATE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000,
       }
     );
 
-    const imageBase64 = Buffer.from(response.data).toString('base64');
-    const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
+    const imageUrl = response.data.output?.[0];
+    if (!imageUrl) {
+      throw new Error('No image URL in response');
+    }
 
     console.log(`✅ [${styleId}] Generated successfully`);
 
@@ -167,10 +170,10 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
   const startTime = Date.now();
 
   console.log('\n🎨 Starting painting style generation...');
-  console.log('Using Hugging Face Stable Diffusion');
-
-  if (!process.env.HF_API_KEY) {
-    throw new Error('HF_API_KEY not set in .env.local');
+  if (process.env.MOCK_API === 'true') {
+    console.log('Using mock mode');
+  } else {
+    console.log('Using Replicate Stable Diffusion');
   }
 
   const results = await Promise.all(
