@@ -140,6 +140,8 @@ async function generateImage(
       }
     );
 
+    console.log(`[${styleId}] Replicate response:`, response.data);
+
     const imageUrl = response.data.output?.[0];
     if (!imageUrl) {
       throw new Error('No image URL in response');
@@ -154,8 +156,13 @@ async function generateImage(
       imageUrl,
     };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`❌ [${styleId}] Error:`, errorMsg);
+    let errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    if (axios.isAxiosError(error) && error.response) {
+      console.error(`❌ [${styleId}] Replicate error (${error.response.status}):`, error.response.data);
+      errorMsg = `${error.response.status}: ${JSON.stringify(error.response.data)}`;
+    } else {
+      console.error(`❌ [${styleId}] Error:`, errorMsg);
+    }
 
     return {
       success: false,
