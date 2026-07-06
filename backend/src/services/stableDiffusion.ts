@@ -103,7 +103,8 @@ function generatePlaceholderImage(styleId: string): string {
 
 async function generateImage(
   prompt: string,
-  styleId: string
+  styleId: string,
+  imageBase64?: string
 ): Promise<VisualizationResult> {
   try {
     console.log(`[${styleId}] Generating: ${prompt}`);
@@ -129,13 +130,19 @@ async function generateImage(
     const authHeader = `Key ${HIGGSFIELD_API_KEY}:${HIGGSFIELD_SECRET}`;
 
     // Submit generation request
+    const requestBody: any = {
+      prompt,
+      aspect_ratio: '1:1',
+      resolution: '720p',
+    };
+
+    if (imageBase64) {
+      requestBody.image = imageBase64;
+    }
+
     const submitResponse = await axios.post(
       'https://platform.higgsfield.ai/higgsfield-ai/soul/standard',
-      {
-        prompt,
-        aspect_ratio: '1:1',
-        resolution: '720p',
-      },
+      requestBody,
       {
         headers: {
           Authorization: authHeader,
@@ -214,6 +221,10 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
     console.log('Using Higgsfield API');
   }
 
+  const imageBase64 = imageInput instanceof Buffer
+    ? imageInput.toString('base64')
+    : imageInput;
+
   let stylesToGenerate = PAINTING_STYLES;
   if (filterStyle) {
     stylesToGenerate = PAINTING_STYLES.filter((s) => s.id.toLowerCase() === filterStyle.toLowerCase());
@@ -225,7 +236,7 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
 
   const results = [];
   for (const style of stylesToGenerate) {
-    const result = await generateImage(style.prompt, style.id);
+    const result = await generateImage(style.prompt, style.id, imageBase64);
     results.push(result);
     if (stylesToGenerate.length > 1) {
       await new Promise(resolve => setTimeout(resolve, 3000));
