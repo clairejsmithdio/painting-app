@@ -126,41 +126,70 @@ async function generateImage(
       throw new Error('HIGGSFIELD_API_KEY or HIGGSFIELD_SECRET not set');
     }
 
-    const response = await axios.post(
-      'https://api.higgsfield.ai/v1/predictions',
+    const authHeader = `Key ${HIGGSFIELD_API_KEY}:${HIGGSFIELD_SECRET}`;
+
+    // Submit generation request
+    const submitResponse = await axios.post(
+      'https://platform.higgsfield.ai/higgsfield-ai/soul/standard',
       {
         prompt,
-        model: 'stable-diffusion-2',
+        aspect_ratio: '1:1',
+        resolution: '720p',
       },
       {
         headers: {
-          'X-API-Key': HIGGSFIELD_API_KEY,
-          'X-API-Secret': HIGGSFIELD_SECRET,
+          Authorization: authHeader,
           'Content-Type': 'application/json',
         },
-        timeout: 120000,
+        timeout: 30000,
       }
     );
 
-    console.log(`[${styleId}] Higgsfield response:`, response.data);
-
-    const imageUrl = response.data.imageUrl || response.data.url || response.data.output?.[0];
-    if (!imageUrl) {
-      throw new Error('No image URL in response');
+    const requestId = submitResponse.data.request_id;
+    if (!requestId) {
+      throw new Error('No request_id in response');
     }
 
-    console.log(`✅ [${styleId}] Generated successfully`);
+    console.log(`[${styleId}] Request submitted, polling for completion...`);
 
-    return {
-      success: true,
-      styleId,
-      label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
-      imageUrl,
-    };
+    // Poll for completion (max 5 minutes)
+    const maxAttempts = 60;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
+
+      const statusResponse = await axios.get(
+        `https://platform.higgsfield.ai/requests/${requestId}/status`,
+        {
+          headers: { Authorization: authHeader },
+          timeout: 30000,
+        }
+      );
+
+      const status = statusResponse.data.status;
+      console.log(`[${styleId}] Status: ${status}`);
+
+      if (status === 'completed') {
+        const imageUrl = statusResponse.data.images?.[0]?.url;
+        if (!imageUrl) {
+          throw new Error('No image URL in completed response');
+        }
+        console.log(`✅ [${styleId}] Generated successfully`);
+        return {
+          success: true,
+          styleId,
+          label: PAINTING_STYLES.find((s) => s.id === styleId)?.label || styleId,
+          imageUrl,
+        };
+      } else if (status === 'failed' || status === 'nsfw') {
+        throw new Error(`Generation ${status}`);
+      }
+    }
+
+    throw new Error('Generation timeout - exceeded maximum wait time');
   } catch (error) {
     let errorMsg = error instanceof Error ? error.message : 'Unknown error';
     if (axios.isAxiosError(error) && error.response) {
-      console.error(`❌ [${styleId}] Replicate error (${error.response.status}):`, error.response.data);
+      console.error(`❌ [${styleId}] Higgsfield error (${error.response.status}):`, error.response.data);
       errorMsg = `${error.response.status}: ${JSON.stringify(error.response.data)}`;
     } else {
       console.error(`❌ [${styleId}] Error:`, errorMsg);
