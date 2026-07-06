@@ -141,7 +141,7 @@ async function generateImage(
     }
 
     const submitResponse = await axios.post(
-      'https://platform.higgsfield.ai/higgsfield-ai/soul/standard',
+      'https://platform.higgsfield.ai/higgsfield-ai/soul/reference',
       requestBody,
       {
         headers: {
