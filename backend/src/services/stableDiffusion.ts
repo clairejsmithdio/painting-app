@@ -180,7 +180,7 @@ export async function visualizeImage(imageInput: Buffer | string): Promise<ApiRe
   for (const style of PAINTING_STYLES) {
     const result = await generateImage(style.prompt, style.id);
     results.push(result);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
 
   const processingTime = Date.now() - startTime;
