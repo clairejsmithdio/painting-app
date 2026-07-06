@@ -57,7 +57,7 @@ interface VisualizationResult {
   success: boolean;
   imageUrl?: string;
   styleId?: string;
-  label?: string;
+  name?: string;
   error?: string;
 }
 
