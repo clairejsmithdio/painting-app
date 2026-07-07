@@ -43,7 +43,15 @@ function VisualisePage() {
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
 
   const styleConfig = useMemo(
-    () => (selected !== "Original" ? getStyleVariations(selected) : undefined),
+    () => {
+      if (selected === "Original") {
+        console.log('[visualise] styleConfig: Original selected, returning undefined');
+        return undefined;
+      }
+      const config = getStyleVariations(selected);
+      console.log('[visualise] styleConfig for selected="' + selected + '":', config);
+      return config;
+    },
     [selected]
   );
 
