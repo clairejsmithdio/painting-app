@@ -128,9 +128,8 @@ async function generateImage(
 
     // Together AI image-to-image request
     const requestBody: any = {
-      model: 'black-forest-labs/FLUX.1-schnell',
+      model: 'stabilityai/stable-diffusion-3-medium',
       prompt,
-      steps: 4,
       height: 768,
       width: 768,
     };
