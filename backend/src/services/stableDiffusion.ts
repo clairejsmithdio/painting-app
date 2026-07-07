@@ -75,19 +75,26 @@ interface ApiResponse {
 // Resize image to valid dimensions (multiples of 32) for Together AI
 async function normalizeImageForAPI(imageBuffer: Buffer): Promise<string> {
   try {
+    console.log(`[normalizeImageForAPI] Input buffer size: ${imageBuffer.length} bytes`);
+
     // Resize to 768x768 (multiple of 32) and return as data URI
     const resized = await sharp(imageBuffer)
       .resize(768, 768, {
         fit: 'cover',
         position: 'center',
       })
+      .jpeg({ quality: 85 })
       .toBuffer();
 
+    console.log(`[normalizeImageForAPI] Resized buffer size: ${resized.length} bytes`);
     const base64 = resized.toString('base64');
+    console.log(`[normalizeImageForAPI] Base64 string size: ${base64.length} chars`);
+
     return `data:image/jpeg;base64,${base64}`;
   } catch (error) {
-    console.error('Error normalizing image:', error);
-    throw new Error('Failed to process image');
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[normalizeImageForAPI] Error: ${errorMsg}`, error);
+    throw new Error(`Image processing failed: ${errorMsg}`);
   }
 }
 
