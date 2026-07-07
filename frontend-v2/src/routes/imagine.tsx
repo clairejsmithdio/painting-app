@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Download, Sparkles, Wand2, Beaker, Share2, Printer } from "lucide-react";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
+import { API_BASE } from "@/lib/api";
 import { setMixImage } from "@/lib/mix-store";
 import { setShareDraft } from "@/lib/share-store";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,7 @@ function ImaginePage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/imagine", {
+      const res = await fetch(`${API_BASE}/api/imagine`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ prompt, style }),
