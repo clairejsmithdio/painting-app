@@ -8,7 +8,7 @@ import { setShareDraft } from "@/lib/share-store";
 import { extractColors } from "@/lib/api";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { visualizePainting, type VisualizeStyle } from "@/lib/api";
-import { getStyleVariations, type StyleConfig } from "@/lib/style-variations";
+import { getStyleVariations, getVariationPromptText, type StyleConfig } from "@/lib/style-variations";
 import { cn } from "@/lib/utils";
 import { ProgressStages } from "@/components/ProgressStages";
 import { ZoomableImage } from "@/components/ZoomableImage";
@@ -159,9 +159,14 @@ function VisualisePage() {
 
   const generateImage = async () => {
     if (selected === "Original" || !styleConfig || !allParamsSelected || !upload) return;
+    // Convert the selected option IDs into rich prompt instructions for the model.
+    const paramsForApi: Record<string, string> = {};
+    for (const [variationId, optionId] of Object.entries(styleParams)) {
+      paramsForApi[variationId] = getVariationPromptText(selected, variationId, optionId);
+    }
     setLoading(true);
     try {
-      const res = await visualizePainting(upload.file, selected, hint?.colors, styleParams);
+      const res = await visualizePainting(upload.file, selected, hint?.colors, paramsForApi);
       const match =
         res.styles.find((s) => s.label?.toLowerCase() === selected.toLowerCase()) ?? res.styles[0];
       if (match) setResults((prev) => ({ ...prev, [selected]: match }));
