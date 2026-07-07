@@ -279,9 +279,23 @@ export const STYLE_VARIATIONS: Record<string, StyleConfig> = {
 };
 
 export function getStyleVariations(styleId: string): StyleConfig | undefined {
-  // Normalize style ID for lookup
-  const normalized = styleId.toLowerCase().replace(/\s+/g, '_');
-  return STYLE_VARIATIONS[normalized] || STYLE_VARIATIONS[styleId.toLowerCase()];
+  // Map short style names to full names used in STYLE_VARIATIONS
+  const styleMap: Record<string, string> = {
+    'watercolor': 'watercolor',
+    'oil': 'oil painting',
+    'ink': 'ink drawing',
+    'acrylic': 'acrylic',
+    'impressionist': 'impressionist',
+    'abstract': 'abstract modern',
+    'pastel': 'soft pastel',
+    'gouache': 'gouache',
+    'charcoal': 'charcoal sketch',
+    'digital': 'digital art',
+  };
+
+  const normalized = styleId.toLowerCase();
+  const fullName = styleMap[normalized] || normalized;
+  return STYLE_VARIATIONS[fullName];
 }
 
 export function getVariationPromptText(styleId: string, variationId: string, optionId: string): string {

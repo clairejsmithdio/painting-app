@@ -65,11 +65,12 @@ export async function visualizePainting(
 }
 
 export async function extractColors(file: File): Promise<{ colors: ExtractedColor[] }> {
-  const image = await toBase64(file);
+  const imageDataUri = await toBase64(file);
+  const imageBase64 = imageDataUri.split(',')[1] || imageDataUri;
   return request("/api/painting/extract-colors", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image }),
+    body: JSON.stringify({ imageBase64 }),
   });
 }
 
