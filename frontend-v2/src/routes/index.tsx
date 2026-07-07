@@ -98,7 +98,6 @@ function Index() {
                 </button>
               );
             })}
-            <NavPill onClick={() => navigate({ to: "/imagine" })} icon={Sparkles} label="Imagine" />
             <NavPill onClick={() => navigate({ to: "/inspire" })} icon={Sparkles} label="Inspire" />
             <NavPill onClick={() => navigate({ to: "/library" })} icon={BookMarked} label="Library" />
             <NavPill onClick={() => navigate({ to: "/community" })} icon={Compass} label="Community" />
