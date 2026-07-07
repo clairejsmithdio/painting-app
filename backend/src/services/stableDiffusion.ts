@@ -104,7 +104,7 @@ function generatePlaceholderImage(styleId: string): string {
 async function generateImage(
   prompt: string,
   styleId: string,
-  imageBase64?: string
+  imageInput?: string | Buffer
 ): Promise<VisualizationResult> {
   try {
     console.log(`[${styleId}] Generating: ${prompt}`);
@@ -126,25 +126,41 @@ async function generateImage(
       throw new Error('TOGETHER_API_KEY not set');
     }
 
-    // Together AI image-to-image request
+    // Together AI image-to-image request using FLUX.2-pro
+    // Use reference_images parameter (recommended for FLUX.2)
     const requestBody: any = {
       model: 'black-forest-labs/FLUX.2-pro',
       prompt,
       height: 768,
       width: 768,
+      steps: 28,
     };
 
-    // Add image if provided (image-to-image mode)
-    if (imageBase64) {
-      // Ensure we have data URI format
-      const imageUri = imageBase64.startsWith('data:')
-        ? imageBase64
-        : `data:image/jpeg;base64,${imageBase64}`;
-      requestBody.image = imageUri;
+    // Add reference image if provided (image-to-image mode)
+    if (imageInput) {
+      let base64Image: string;
+      const inputType = Buffer.isBuffer(imageInput) ? 'Buffer' : typeof imageInput;
+      console.log(`[${styleId}] Input type: ${inputType}, length: ${typeof imageInput === 'string' ? imageInput.length : (imageInput as Buffer).length}`);
+
+      if (typeof imageInput === 'string' && !imageInput.startsWith('data:')) {
+        // Already base64
+        base64Image = imageInput;
+      } else if (typeof imageInput === 'string' && imageInput.startsWith('data:')) {
+        // Strip data URI prefix to get raw base64
+        base64Image = imageInput.split(',')[1] || imageInput;
+      } else {
+        // Buffer - convert to base64
+        base64Image = imageInput.toString('base64');
+      }
+
+      console.log(`[${styleId}] Base64 image size: ${base64Image.length} chars`);
+      // FLUX.2-pro uses reference_images parameter (as array)
+      requestBody.reference_images = [base64Image];
     }
 
     console.log(`[${styleId}] Request body keys:`, Object.keys(requestBody));
-    console.log(`[${styleId}] Has image: ${!!requestBody.image_url}`);
+    console.log(`[${styleId}] Has reference_images: ${!!requestBody.reference_images}, size: ${requestBody.reference_images ? requestBody.reference_images[0].length : 0}`);
+    console.log(`[${styleId}] Full request (first 500 chars):`, JSON.stringify(requestBody).substring(0, 500));
 
     const response = await axios.post(
       'https://api.together.xyz/v1/images/generations',
@@ -165,7 +181,7 @@ async function generateImage(
       throw new Error('No image URL in response');
     }
 
-    console.log(`✅ [${styleId}] Generated successfully with image reference`);
+    console.log(`✅ [${styleId}] Generated successfully${requestBody.reference_images ? ' with reference image' : ''}`);
 
     return {
       success: true,
@@ -191,19 +207,21 @@ async function generateImage(
   }
 }
 
-export async function visualizeImage(imageInput: Buffer | string, filterStyle?: string): Promise<ApiResponse> {
+export async function visualizeImage(
+  imageInput: Buffer | string,
+  filterStyle?: string
+): Promise<ApiResponse> {
   const startTime = Date.now();
 
   console.log('\n🎨 Starting painting style generation...');
+  console.log(`visualizeImage received imageInput: ${!!imageInput}, type: ${Buffer.isBuffer(imageInput) ? 'Buffer' : typeof imageInput}, size: ${Buffer.isBuffer(imageInput) ? (imageInput as Buffer).length : (imageInput as string).length}`);
+  console.log(`filterStyle: ${filterStyle}`);
+
   if (process.env.MOCK_API === 'true') {
     console.log('Using mock mode');
   } else {
-    console.log('Using Together AI (FLUX.1 Kontext)');
+    console.log('Using Together AI (FLUX.2-pro with reference_images)');
   }
-
-  const imageBase64 = imageInput instanceof Buffer
-    ? imageInput.toString('base64')
-    : imageInput;
 
   let stylesToGenerate = PAINTING_STYLES;
   if (filterStyle) {
@@ -216,10 +234,10 @@ export async function visualizeImage(imageInput: Buffer | string, filterStyle?: 
 
   const results = [];
   for (const style of stylesToGenerate) {
-    const result = await generateImage(style.prompt, style.id, imageBase64);
+    const result = await generateImage(style.prompt, style.id, imageInput);
     results.push(result);
     if (stylesToGenerate.length > 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced delay since Together AI is faster
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting
     }
   }
 

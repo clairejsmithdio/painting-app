@@ -22,16 +22,23 @@ interface ColorMixingRequest {
 
 paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
   try {
-    const { imageBase64, image, imageUrl, style } = req.body as PaintingRequest;
+    const { imageBase64, image, style } = req.body as PaintingRequest;
     const base64Data = imageBase64 || image;
 
-    if (!base64Data && !imageUrl) {
-      return res.status(400).json({ error: 'Either imageBase64, image, or imageUrl is required' });
+    console.log('\n📸 Visualize endpoint called');
+    console.log(`imageBase64 present: ${!!imageBase64}, length: ${imageBase64?.length || 0}`);
+    console.log(`image present: ${!!image}, length: ${image?.length || 0}`);
+    console.log(`base64Data present: ${!!base64Data}, length: ${base64Data?.length || 0}`);
+    console.log(`style: ${style}`);
+
+    if (!base64Data) {
+      return res.status(400).json({ error: 'imageBase64 or image is required' });
     }
 
-    const imageBuffer = base64Data ? Buffer.from(base64Data, 'base64') : undefined;
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    console.log(`Created buffer, length: ${imageBuffer.length} bytes`);
 
-    const results = await visualizeImage((imageBuffer || imageUrl)!, style);
+    const results = await visualizeImage(imageBuffer, style);
     res.json(results);
   } catch (error) {
     console.error('Visualization error:', error);
