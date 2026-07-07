@@ -73,15 +73,21 @@ interface ApiResponse {
 }
 
 // Resize image to valid dimensions (multiples of 32) for Together AI
+// Preserves aspect ratio and pads with white if needed
 async function normalizeImageForAPI(imageBuffer: Buffer): Promise<string> {
   try {
     console.log(`[normalizeImageForAPI] Input buffer size: ${imageBuffer.length} bytes`);
 
-    // Resize to 768x768 (multiple of 32) and return as data URI
+    // Get original dimensions
+    const metadata = await sharp(imageBuffer).metadata();
+    console.log(`[normalizeImageForAPI] Original dimensions: ${metadata.width}x${metadata.height}`);
+
+    // Resize to fit within 768x768 while preserving aspect ratio
+    // Use white background padding to reach 768x768
     const resized = await sharp(imageBuffer)
       .resize(768, 768, {
-        fit: 'cover',
-        position: 'center',
+        fit: 'contain',
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
       })
       .jpeg({ quality: 85 })
       .toBuffer();
