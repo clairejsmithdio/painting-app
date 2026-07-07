@@ -160,7 +160,6 @@ async function generateImage(
       prompt,
       height: 768,
       width: 768,
-      steps: 28,
     };
 
     // Add reference image if provided (image-to-image mode)
