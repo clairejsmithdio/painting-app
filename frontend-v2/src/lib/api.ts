@@ -85,6 +85,6 @@ export async function mixColors(payload: {
   return request("/api/painting/mix-colors", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ targetColor: payload.targetHex, brandId: payload.brand }),
   });
 }

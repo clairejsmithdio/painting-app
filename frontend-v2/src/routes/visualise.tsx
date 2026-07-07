@@ -127,20 +127,11 @@ function VisualisePage() {
     window.print();
   };
 
-  const goToMix = async () => {
-    if (!activeImage) return;
-    try {
-      const res = await fetch(activeImage);
-      const blob = await res.blob();
-      const ext = blob.type === "image/png" ? "png" : "jpg";
-      const file = new File([blob], `palette-mix.${ext}`, { type: blob.type });
-      setMixImage(file, activeImage);
-    } catch {
-      // Fallback to original upload if fetching the styled image fails
-      if (upload) {
-        setMixImage(upload.file, upload.preview);
-      }
-    }
+  const goToMix = () => {
+    if (!activeImage || selected === "Original") return;
+    // For generated images, pass the image URL directly
+    // We'll use the upload file with the generated image URL as preview
+    setMixImage(upload!.file, activeImage);
     navigate({ to: "/mix" });
   };
 
