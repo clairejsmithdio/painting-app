@@ -59,6 +59,10 @@ function ImaginePage() {
   const generate = async () => {
     setError(null);
     setImageUrl(null);
+    if (!prompt.trim() || !style) {
+      setError("Please enter a description and select a style");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/imagine", {
@@ -68,12 +72,16 @@ function ImaginePage() {
       });
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "Failed to generate");
+        throw new Error(text || `Request failed with status ${res.status}`);
       }
       const data = (await res.json()) as { imageUrl: string };
+      if (!data.imageUrl) {
+        throw new Error("No image URL in response");
+      }
       setImageUrl(data.imageUrl);
     } catch (err) {
-      setError((err as Error).message);
+      console.error("Generate error:", err);
+      setError((err as Error).message || "Failed to generate image");
     } finally {
       setLoading(false);
     }
