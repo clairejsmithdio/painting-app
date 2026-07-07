@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Loader2, Printer, Beaker, Share2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Printer, Beaker, Share2, ChevronDown } from "lucide-react";
 import { getUpload, clearUpload } from "@/lib/upload-store";
 import { setMixImage } from "@/lib/mix-store";
 import { consumePaletteHint, type PaletteHint } from "@/lib/palette-apply-store";
@@ -8,6 +8,7 @@ import { setShareDraft } from "@/lib/share-store";
 import { extractColors } from "@/lib/api";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { visualizePainting, type VisualizeStyle } from "@/lib/api";
+import { getStyleVariations, type StyleConfig } from "@/lib/style-variations";
 import { cn } from "@/lib/utils";
 import { ProgressStages } from "@/components/ProgressStages";
 
@@ -38,6 +39,7 @@ function VisualisePage() {
   const [results, setResults] = useState<Record<string, VisualizeStyle>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [styleParams, setStyleParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!upload) navigate({ to: "/" });
