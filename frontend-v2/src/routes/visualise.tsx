@@ -5,7 +5,7 @@ import { getUpload, clearUpload } from "@/lib/upload-store";
 import { setMixImage } from "@/lib/mix-store";
 import { consumePaletteHint, type PaletteHint } from "@/lib/palette-apply-store";
 import { setShareDraft } from "@/lib/share-store";
-import { extractColors } from "@/lib/api";
+import { extractColors, API_BASE } from "@/lib/api";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { visualizePainting, type VisualizeStyle } from "@/lib/api";
 import { getStyleVariations, getVariationPromptText, type StyleConfig } from "@/lib/style-variations";
@@ -69,7 +69,9 @@ function VisualisePage() {
     let finalDataUrl: string | null = null;
     if (activeImage && selected !== "Original") {
       try {
-        const res = await fetch(activeImage);
+        // Proxy the CDN image through our backend to dodge CORS.
+        const proxied = `${API_BASE}/api/painting/proxy-image?url=${encodeURIComponent(activeImage)}`;
+        const res = await fetch(proxied);
         const blob = await res.blob();
         finalDataUrl = await new Promise<string>((resolve, reject) => {
           const r = new FileReader();
@@ -130,16 +132,21 @@ function VisualisePage() {
   const goToMix = async () => {
     if (!activeImage || selected === "Original" || !upload) return;
     try {
-      // For generated images from Together AI, fetch and create a File
-      const res = await fetch(activeImage);
-      if (!res.ok) throw new Error('Failed to fetch image');
+      // Generated images live on the Together AI CDN, which blocks browser fetch
+      // (no CORS headers). Route through our backend proxy so we can read the bytes
+      // and analyse the painted result — not the original upload.
+      const proxied = `${API_BASE}/api/painting/proxy-image?url=${encodeURIComponent(activeImage)}`;
+      const res = await fetch(proxied);
+      if (!res.ok) throw new Error(`Proxy returned ${res.status}`);
       const blob = await res.blob();
       const ext = blob.type === "image/png" ? "png" : "jpg";
-      const file = new File([blob], `palette-${selected.toLowerCase()}.${ext}`, { type: blob.type });
+      const file = new File([blob], `palette-${selected.toLowerCase()}.${ext}`, {
+        type: blob.type || "image/jpeg",
+      });
       setMixImage(file, activeImage);
     } catch (err) {
-      // Fallback to original upload if fetch fails
-      console.error('Failed to fetch generated image for mix:', err);
+      // Fallback to original upload if the proxy fails — still lets the user proceed.
+      console.error("Failed to fetch generated image for mix:", err);
       setMixImage(upload.file, activeImage);
     }
     navigate({ to: "/mix" });

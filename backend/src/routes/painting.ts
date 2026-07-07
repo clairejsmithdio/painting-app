@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import axios from 'axios';
 import { visualizeImage } from '../services/stableDiffusion';
 import {
   extractDominantColors,
@@ -136,6 +137,39 @@ paintingRoutes.get('/paint-brands', (req: Request, res: Response) => {
     console.error('Paint brands error:', error);
     res.status(500).json({
       error: 'Failed to fetch paint brands',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Proxy a remote image (e.g. a Together AI CDN URL) so the browser can fetch it.
+// The generated image host does not send CORS headers, so a direct browser fetch
+// fails — this streams the bytes back through our own (CORS-open) origin.
+paintingRoutes.get('/proxy-image', async (req: Request, res: Response) => {
+  try {
+    const url = typeof req.query.url === 'string' ? req.query.url : '';
+    if (!url || !/^https?:\/\//i.test(url)) {
+      return res.status(400).json({ error: 'A valid http(s) url query param is required' });
+    }
+
+    const upstream = await axios.get<ArrayBuffer>(url, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+      maxContentLength: 25 * 1024 * 1024,
+    });
+
+    const contentType = upstream.headers['content-type'] || 'image/jpeg';
+    if (!/^image\//i.test(contentType)) {
+      return res.status(415).json({ error: 'Upstream resource is not an image' });
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(Buffer.from(upstream.data));
+  } catch (error) {
+    console.error('Proxy image error:', error);
+    res.status(502).json({
+      error: 'Failed to proxy image',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }

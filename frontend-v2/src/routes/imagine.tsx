@@ -130,13 +130,20 @@ function ImaginePage() {
   const goToMix = async () => {
     if (!imageUrl) return;
     try {
-      const res = await fetch(imageUrl);
+      // The generated image is on the Together AI CDN (no CORS) — proxy through
+      // our backend so the browser can read the bytes for colour extraction.
+      const proxied = `${API_BASE}/api/painting/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      const res = await fetch(proxied);
+      if (!res.ok) throw new Error(`Proxy returned ${res.status}`);
       const blob = await res.blob();
       const ext = blob.type === "image/png" ? "png" : "jpg";
-      const file = new File([blob], `palette-imagine.${ext}`, { type: blob.type });
+      const file = new File([blob], `palette-imagine.${ext}`, {
+        type: blob.type || "image/jpeg",
+      });
       setMixImage(file, imageUrl);
       navigate({ to: "/mix" });
-    } catch {
+    } catch (err) {
+      console.error("Failed to hand off to Mix:", err);
       setError("Couldn't hand off to Mix.");
     }
   };
