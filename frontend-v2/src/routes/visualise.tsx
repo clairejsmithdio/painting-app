@@ -243,10 +243,17 @@ function VisualisePage() {
                 {/* Style Parameters as Swatches */}
                 {styleConfig && (
                   <div className="space-y-8">
-                    {styleConfig.variations.map((variation) => (
+                    {styleConfig.variations.map((variation) => {
+                      const isSelected = !!styleParams[variation.id];
+                      return (
                       <div key={variation.id} className="space-y-3">
-                        <h3 className="font-display text-sm text-navy font-semibold">
+                        <h3 className="font-display text-sm text-navy font-semibold flex items-center gap-2">
                           {variation.name}
+                          {isSelected ? (
+                            <span className="text-xs font-normal text-coral">✓</span>
+                          ) : (
+                            <span className="text-xs font-normal text-navy/40">required</span>
+                          )}
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
                           {variation.options.map((option) => {
@@ -280,7 +287,8 @@ function VisualisePage() {
                           })}
                         </div>
                       </div>
-                    ))}
+                    );
+                    }))}
 
                     {/* Generate Button */}
                     <button
