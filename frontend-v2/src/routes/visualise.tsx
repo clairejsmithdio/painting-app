@@ -352,7 +352,7 @@ function VisualisePage() {
                   <div className="font-display text-2xl text-navy">{selected}</div>
                   {error && <div className="text-xs text-destructive mt-1">{error}</div>}
                 </div>
-              {activeImage && selected !== "Original" && (
+                {activeImage && selected !== "Original" && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => download(activeImage, selected)}
