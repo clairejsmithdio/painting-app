@@ -6,6 +6,7 @@ import { setMixImage } from "@/lib/mix-store";
 import { setShareDraft } from "@/lib/share-store";
 import { cn } from "@/lib/utils";
 import { ProgressStages } from "@/components/ProgressStages";
+import { ZoomableImage } from "@/components/ZoomableImage";
 
 const IMAGINE_STAGES = [
   "Reading your description",
@@ -221,11 +222,11 @@ function ImaginePage() {
           <section className="card-elevated overflow-hidden">
             <div className="relative aspect-square sm:aspect-[4/3] bg-muted">
               {imageUrl && !loading ? (
-                <img
+                <ZoomableImage
                   key={imageUrl}
                   src={imageUrl}
                   alt={prompt}
-                  className="h-full w-full object-cover animate-fade-up"
+                  className="animate-fade-up"
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-canvas/60 backdrop-blur-sm p-6">

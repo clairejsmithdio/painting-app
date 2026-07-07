@@ -12,8 +12,8 @@
       "name": "frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "frontend",
-      "port": 3000
+      "cwd": "frontend-v2",
+      "port": 5173
     }
   ]
 }

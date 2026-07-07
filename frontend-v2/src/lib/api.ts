@@ -48,6 +48,7 @@ export async function visualizePainting(
   file: File,
   style?: string,
   paletteHex?: string[],
+  styleParams?: Record<string, string>,
 ): Promise<{ styles: VisualizeStyle[] }> {
   const image = await toBase64(file);
   return request("/api/painting/visualize", {
@@ -58,6 +59,7 @@ export async function visualizePainting(
       style,
       styles: style ? [style] : undefined,
       palette: paletteHex && paletteHex.length ? paletteHex : undefined,
+      styleParams: styleParams && Object.keys(styleParams).length ? styleParams : undefined,
     }),
   });
 }

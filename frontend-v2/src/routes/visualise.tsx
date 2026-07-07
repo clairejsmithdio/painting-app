@@ -11,6 +11,7 @@ import { visualizePainting, type VisualizeStyle } from "@/lib/api";
 import { getStyleVariations, type StyleConfig } from "@/lib/style-variations";
 import { cn } from "@/lib/utils";
 import { ProgressStages } from "@/components/ProgressStages";
+import { ZoomableImage } from "@/components/ZoomableImage";
 
 
 const VISUALISE_STAGES = [
@@ -41,6 +42,11 @@ function VisualisePage() {
   const [error, setError] = useState<string | null>(null);
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
 
+  const styleConfig = useMemo(
+    () => (selected !== "Original" ? getStyleVariations(selected) : undefined),
+    [selected]
+  );
+
   useEffect(() => {
     if (!upload) navigate({ to: "/" });
   }, [upload, navigate]);
@@ -54,10 +60,12 @@ function VisualisePage() {
   const pickStyle = async (id: StyleId) => {
     setSelected(id);
     setError(null);
+    // Clear parameters when switching styles
+    setStyleParams({});
     if (id === "Original" || results[id] || !upload) return;
     setLoading(true);
     try {
-      const res = await visualizePainting(upload.file, id, hint?.colors);
+      const res = await visualizePainting(upload.file, id, hint?.colors, styleParams);
       const match =
         res.styles.find((s) => s.label?.toLowerCase() === id.toLowerCase()) ?? res.styles[0];
       if (match) setResults((prev) => ({ ...prev, [id]: match }));
@@ -65,6 +73,27 @@ function VisualisePage() {
       setError((err as Error).message ?? "Failed to generate style");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVariationChange = async (variationId: string, optionId: string) => {
+    const newParams = { ...styleParams, [variationId]: optionId };
+    setStyleParams(newParams);
+    
+    // Regenerate the image with new parameters
+    if (selected !== "Original" && upload) {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await visualizePainting(upload.file, selected, hint?.colors, newParams);
+        const match =
+          res.styles.find((s) => s.label?.toLowerCase() === selected.toLowerCase()) ?? res.styles[0];
+        if (match) setResults((prev) => ({ ...prev, [selected]: match }));
+      } catch (err) {
+        setError((err as Error).message ?? "Failed to generate style");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -173,7 +202,7 @@ function VisualisePage() {
             <p className="text-sm text-muted-foreground mb-5">
               Tap a swatch to see your photo in that medium.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {STYLE_SWATCHES.map((s) => {
                 const active = selected === s.id;
                 const isLoading = loading && selected === s.id;
@@ -218,6 +247,41 @@ function VisualisePage() {
                 );
               })}
             </div>
+
+            {/* Style Parameters */}
+            {styleConfig && selected !== "Original" && (
+              <div className="space-y-4 border-t border-navy/10 pt-6">
+                <h3 className="font-display text-sm text-navy font-semibold">Style Options</h3>
+                {styleConfig.variations.map((variation) => (
+                  <div key={variation.id} className="space-y-2">
+                    <label className="block text-xs font-medium text-navy/70">
+                      {variation.name}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {variation.options.map((option) => {
+                        const isSelected = styleParams[variation.id] === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => handleVariationChange(variation.id, option.id)}
+                            disabled={loading}
+                            title={option.description}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed",
+                              isSelected
+                                ? "bg-navy text-white shadow-sm"
+                                : "bg-navy/5 text-navy hover:bg-navy/10 border border-navy/20"
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </aside>
 
           {/* Right: canvas */}
@@ -225,11 +289,11 @@ function VisualisePage() {
             <div className="card-elevated overflow-hidden">
               <div className="relative aspect-[4/3] bg-muted">
                 {activeImage && !loading ? (
-                  <img
+                  <ZoomableImage
                     key={activeImage}
                     src={activeImage}
                     alt={selected}
-                    className="h-full w-full object-cover animate-fade-up"
+                    className="animate-fade-up"
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-canvas/60 backdrop-blur-sm p-8">
