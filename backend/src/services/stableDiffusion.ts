@@ -144,6 +144,9 @@ async function generateImage(
       requestBody.image_url = imageUri;
     }
 
+    console.log(`[${styleId}] Request body keys:`, Object.keys(requestBody));
+    console.log(`[${styleId}] Has image: ${!!requestBody.image_url}`);
+
     const response = await axios.post(
       'https://api.together.xyz/v1/images/generations',
       requestBody,
@@ -156,12 +159,14 @@ async function generateImage(
       }
     );
 
+    console.log(`[${styleId}] Response status:`, response.status);
     const imageUrl = response.data.data?.[0]?.url;
     if (!imageUrl) {
+      console.error(`[${styleId}] Response data:`, JSON.stringify(response.data));
       throw new Error('No image URL in response');
     }
 
-    console.log(`✅ [${styleId}] Generated successfully`);
+    console.log(`✅ [${styleId}] Generated successfully with image reference`);
 
     return {
       success: true,
