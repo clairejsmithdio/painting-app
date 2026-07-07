@@ -215,7 +215,7 @@ async function generateImage(
           Authorization: `Bearer ${TOGETHER_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        timeout: 60000,
+        timeout: 120000,
       }
     );
 
