@@ -298,7 +298,7 @@ function VisualisePage() {
                         </div>
                       </div>
                     );
-                    }))}
+                    })}
 
                     {/* Generate Button */}
                     <button
