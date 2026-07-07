@@ -136,11 +136,9 @@ async function generateImage(
 
     // Add image if provided (image-to-image mode)
     if (imageBase64) {
-      // Format as data URI if not already
-      const imageUri = imageBase64.startsWith('data:')
-        ? imageBase64
-        : `data:image/png;base64,${imageBase64}`;
-      requestBody.image_url = imageUri;
+      // Remove data URI prefix if present, send raw base64
+      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      requestBody.image_url = cleanBase64;
     }
 
     console.log(`[${styleId}] Request body keys:`, Object.keys(requestBody));
