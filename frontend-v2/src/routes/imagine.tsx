@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Download, Sparkles, Wand2, Beaker, Share2, Printer } from "lucide-react";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { API_BASE } from "@/lib/api";
+import { getStyleVariations, getVariationPromptText } from "@/lib/style-variations";
 import { setMixImage } from "@/lib/mix-store";
 import { setShareDraft } from "@/lib/share-store";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ function ImaginePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [styleParams, setStyleParams] = useState<Record<string, string>>({});
 
   const paintableStyles = useMemo(
     () => STYLE_SWATCHES.filter((s) => s.id !== "Original"),
@@ -55,7 +57,20 @@ function ImaginePage() {
     [],
   );
 
-  const canGenerate = prompt.trim().length >= 6 && !loading;
+  const styleConfig = useMemo(() => getStyleVariations(style), [style]);
+
+  const allParamsSelected = useMemo(() => {
+    if (!styleConfig) return true;
+    return styleConfig.variations.every((v) => styleParams[v.id]);
+  }, [styleConfig, styleParams]);
+
+  const pickMedium = (id: StyleId) => {
+    setStyle(id);
+    setStyleParams({});
+    setError(null);
+  };
+
+  const canGenerate = prompt.trim().length >= 6 && allParamsSelected && !loading;
 
   const generate = async () => {
     setError(null);
@@ -64,12 +79,21 @@ function ImaginePage() {
       setError("Please enter a description and select a style");
       return;
     }
+    if (!allParamsSelected) {
+      setError("Please choose all the style options above");
+      return;
+    }
+    // Convert the selected option IDs into rich prompt instructions for the model.
+    const paramsForApi: Record<string, string> = {};
+    for (const [variationId, optionId] of Object.entries(styleParams)) {
+      paramsForApi[variationId] = getVariationPromptText(style, variationId, optionId);
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/imagine`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt, style }),
+        body: JSON.stringify({ prompt, style, styleParams: paramsForApi }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -189,7 +213,7 @@ function ImaginePage() {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setStyle(s.id)}
+                  onClick={() => pickMedium(s.id)}
                   className={cn(
                     "group relative overflow-hidden rounded-xl border text-left transition",
                     active
@@ -208,6 +232,65 @@ function ImaginePage() {
             })}
           </div>
         </section>
+
+        {/* Refine — secondary style options */}
+        {styleConfig && (
+          <section className="rounded-3xl bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mb-3">
+              <div className="text-sm font-medium text-navy">Refine your {style}</div>
+              <div className="text-xs text-muted-foreground">
+                Choose how it's painted. All options are required.
+              </div>
+            </div>
+            <div className="space-y-6">
+              {styleConfig.variations.map((variation) => {
+                const chosen = styleParams[variation.id];
+                return (
+                  <div key={variation.id} className="space-y-3">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-navy">
+                      {variation.name}
+                      {chosen ? (
+                        <span className="text-xs font-normal text-coral">✓</span>
+                      ) : (
+                        <span className="text-xs font-normal text-navy/40">required</span>
+                      )}
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                      {variation.options.map((option) => {
+                        const isSelected = chosen === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() =>
+                              setStyleParams((prev) => ({
+                                ...prev,
+                                [variation.id]: option.id,
+                              }))
+                            }
+                            disabled={loading}
+                            title={option.description}
+                            className={cn(
+                              "rounded-xl border p-3 text-left transition disabled:cursor-not-allowed",
+                              isSelected
+                                ? "border-navy shadow-md ring-2 ring-navy/20 bg-navy/5"
+                                : "border-navy/10 hover:border-navy/30 hover:-translate-y-0.5 bg-white",
+                            )}
+                          >
+                            <div className="text-xs font-medium text-navy">{option.label}</div>
+                            <div className="mt-1 text-[10px] leading-snug text-navy/60">
+                              {option.description}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Generate */}
         <div className="sticky bottom-4 z-10">
