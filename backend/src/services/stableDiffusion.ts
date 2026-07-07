@@ -137,8 +137,11 @@ async function generateImage(
 
     // Add image if provided (image-to-image mode)
     if (imageBase64) {
-      requestBody.image = imageBase64;
-      requestBody.image_strength = 0.7; // Control how much the output differs from input
+      // Format as data URI if not already
+      const imageUri = imageBase64.startsWith('data:')
+        ? imageBase64
+        : `data:image/png;base64,${imageBase64}`;
+      requestBody.image_url = imageUri;
     }
 
     const response = await axios.post(
