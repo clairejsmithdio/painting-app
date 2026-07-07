@@ -298,7 +298,37 @@ export function getStyleVariations(styleId: string): StyleConfig | undefined {
   return STYLE_VARIATIONS[fullName];
 }
 
+// Detailed prompt instructions for each variation to guide the AI model more effectively
+const VARIATION_PROMPT_INSTRUCTIONS: Record<string, Record<string, string>> = {
+  'continuous_line': 'ONLY unbroken flowing lines, no fills or shading, single continuous line style, minimalist',
+  'crosshatching': 'Use only parallel and intersecting lines for shading, no fills, crosshatching technique',
+  'stippling': 'Use only small dots and points for shading, no lines, pure stippling technique',
+  'dry_precise': 'Sharp precise lines, controlled and defined, no soft blending, crisp edges',
+  'wet_flowing': 'Ink diffusion and flow, soft edges, organic spreading, fluid lines',
+  'wet_on_wet': 'Soft flowing edges, colors blending and diffusing into each other, no hard lines',
+  'wet_on_dry': 'Crisp defined edges, hard lines, clean color separation, no diffusion',
+  'damp': 'Balanced blending with some definition, soft edges with controlled flow',
+  'impasto': 'Thick textured paint application, visible brushstrokes, dimensional surface',
+  'glazing': 'Transparent layered paint, thin layers, luminous quality, built up depth',
+  'blending': 'Smooth color transitions, blended edges, soft gradations, no visible strokes',
+  'layering': 'Built up translucent layers, visible layering, depth through opacity changes',
+  'wet_blending': 'Blended while wet, smooth transitions, soft edges, wet-on-wet appearance',
+  'dry_brush': 'Textured brushstrokes visible, dry application, rough edges, visible paint',
+  'loose_expressive': 'Energetic visible brushwork, gestural marks, expressive and loose',
+  'controlled_detailed': 'Precise placement, detailed work, controlled brushwork, tight technique',
+  'soft_atmospheric': 'Misty dreamy quality, soft focus, atmospheric haze, diffused edges',
+  'smooth': 'Flat even surface, no texture, smooth finish, uniform coverage',
+  'glazed': 'Semi-transparent layered finish, subtle gloss, layered depth',
+  'opaque_layering': 'Solid coverage, opaque application, bold colors, flat graphic style',
+};
+
 export function getVariationPromptText(styleId: string, variationId: string, optionId: string): string {
+  // Check for detailed instruction first
+  if (VARIATION_PROMPT_INSTRUCTIONS[optionId]) {
+    return VARIATION_PROMPT_INSTRUCTIONS[optionId];
+  }
+
+  // Fallback to option label + description
   const styleConfig = getStyleVariations(styleId);
   if (!styleConfig) return '';
 
