@@ -137,10 +137,14 @@ function generatePlaceholderImage(styleId: string): string {
 async function generateImage(
   prompt: string,
   styleId: string,
-  imageInput?: string | Buffer
+  imageInput?: string | Buffer,
+  styleParams?: Record<string, string>
 ): Promise<VisualizationResult> {
   try {
     console.log(`[${styleId}] Generating: ${prompt}`);
+    if (styleParams && Object.keys(styleParams).length > 0) {
+      console.log(`[${styleId}] Style parameters:`, styleParams);
+    }
 
     // Mock mode for local development
     if (process.env.MOCK_API === 'true') {
@@ -161,9 +165,19 @@ async function generateImage(
 
     // Together AI image-to-image request using FLUX.2-pro
     // Use reference_images parameter (recommended for FLUX.2)
+    let enhancedPrompt = prompt;
+
+    // Add style parameters to prompt
+    if (styleParams && Object.keys(styleParams).length > 0) {
+      const paramDescriptions = Object.values(styleParams).filter(p => p && p.length > 0);
+      if (paramDescriptions.length > 0) {
+        enhancedPrompt = `${prompt}. Style details: ${paramDescriptions.join(', ')}.`;
+      }
+    }
+
     const requestBody: any = {
       model: 'black-forest-labs/FLUX.2-pro',
-      prompt,
+      prompt: enhancedPrompt,
       height: 768,
       width: 768,
     };
@@ -240,13 +254,17 @@ async function generateImage(
 
 export async function visualizeImage(
   imageInput: Buffer | string,
-  filterStyle?: string
+  filterStyle?: string,
+  styleParams?: Record<string, string>
 ): Promise<ApiResponse> {
   const startTime = Date.now();
 
   console.log('\n🎨 Starting painting style generation...');
   console.log(`visualizeImage received imageInput: ${!!imageInput}, type: ${Buffer.isBuffer(imageInput) ? 'Buffer' : typeof imageInput}, size: ${Buffer.isBuffer(imageInput) ? (imageInput as Buffer).length : (imageInput as string).length}`);
   console.log(`filterStyle: ${filterStyle}`);
+  if (styleParams) {
+    console.log(`styleParams:`, styleParams);
+  }
 
   if (process.env.MOCK_API === 'true') {
     console.log('Using mock mode');
@@ -265,7 +283,7 @@ export async function visualizeImage(
 
   const results = [];
   for (const style of stylesToGenerate) {
-    const result = await generateImage(style.prompt, style.id, imageInput);
+    const result = await generateImage(style.prompt, style.id, imageInput, styleParams);
     results.push(result);
     if (stylesToGenerate.length > 1) {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting

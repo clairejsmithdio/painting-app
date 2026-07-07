@@ -6,15 +6,19 @@ export const imagineRoutes = express.Router();
 interface ImagineRequest {
   prompt: string;
   style: string;
+  styleParams?: Record<string, string>;
 }
 
 imagineRoutes.post('/imagine', async (req: Request, res: Response) => {
   try {
-    const { prompt, style } = req.body as ImagineRequest;
+    const { prompt, style, styleParams } = req.body as ImagineRequest;
 
     console.log('\n✨ Imagine endpoint called');
     console.log(`prompt: "${prompt}"`);
     console.log(`style: ${style}`);
+    if (styleParams) {
+      console.log(`styleParams:`, styleParams);
+    }
 
     if (!prompt || prompt.trim().length < 6) {
       return res.status(400).json({ error: 'Prompt must be at least 6 characters' });
@@ -62,7 +66,15 @@ imagineRoutes.post('/imagine', async (req: Request, res: Response) => {
     };
 
     const stylePrefix = stylePrompts[style.toLowerCase()] || `${style} style painting`;
-    const enhancedPrompt = `${prompt}. Painted in ${stylePrefix}`;
+    let enhancedPrompt = `${prompt}. Painted in ${stylePrefix}`;
+
+    // Add style parameters to prompt
+    if (styleParams && Object.keys(styleParams).length > 0) {
+      const paramDescriptions = Object.values(styleParams).filter(p => p && p.length > 0);
+      if (paramDescriptions.length > 0) {
+        enhancedPrompt += `. Style details: ${paramDescriptions.join(', ')}.`;
+      }
+    }
 
     console.log(`[imagine] Enhanced prompt: "${enhancedPrompt}"`);
 
