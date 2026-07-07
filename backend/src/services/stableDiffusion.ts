@@ -1,4 +1,5 @@
 import axios from 'axios';
+import sharp from 'sharp';
 
 const PAINTING_STYLES = [
   {
@@ -71,6 +72,25 @@ interface ApiResponse {
   processingTime?: number;
 }
 
+// Resize image to valid dimensions (multiples of 32) for Together AI
+async function normalizeImageForAPI(imageBuffer: Buffer): Promise<string> {
+  try {
+    // Resize to 768x768 (multiple of 32) and return as data URI
+    const resized = await sharp(imageBuffer)
+      .resize(768, 768, {
+        fit: 'cover',
+        position: 'center',
+      })
+      .toBuffer();
+
+    const base64 = resized.toString('base64');
+    return `data:image/jpeg;base64,${base64}`;
+  } catch (error) {
+    console.error('Error normalizing image:', error);
+    throw new Error('Failed to process image');
+  }
+}
+
 // Generate a deterministic placeholder image based on style ID
 function generatePlaceholderImage(styleId: string): string {
   const colors: { [key: string]: string } = {
@@ -138,24 +158,23 @@ async function generateImage(
 
     // Add reference image if provided (image-to-image mode)
     if (imageInput) {
-      let base64Image: string;
-      const inputType = Buffer.isBuffer(imageInput) ? 'Buffer' : typeof imageInput;
-      console.log(`[${styleId}] Input type: ${inputType}, length: ${typeof imageInput === 'string' ? imageInput.length : (imageInput as Buffer).length}`);
+      let imageDataUri: string;
 
-      if (typeof imageInput === 'string' && !imageInput.startsWith('data:')) {
-        // Already base64
-        base64Image = imageInput;
+      if (Buffer.isBuffer(imageInput)) {
+        // Resize to valid dimensions (768x768, multiple of 32) and convert to data URI
+        imageDataUri = await normalizeImageForAPI(imageInput);
       } else if (typeof imageInput === 'string' && imageInput.startsWith('data:')) {
-        // Strip data URI prefix to get raw base64
-        base64Image = imageInput.split(',')[1] || imageInput;
+        // Already a data URI
+        imageDataUri = imageInput;
       } else {
-        // Buffer - convert to base64
-        base64Image = imageInput.toString('base64');
+        // Raw base64 - convert buffer first
+        const buf = Buffer.from(imageInput, 'base64');
+        imageDataUri = await normalizeImageForAPI(buf);
       }
 
-      console.log(`[${styleId}] Base64 image size: ${base64Image.length} chars`);
-      // FLUX.2-pro uses reference_images parameter (as array)
-      requestBody.reference_images = [base64Image];
+      console.log(`[${styleId}] Image data URI size: ${imageDataUri.length} chars`);
+      // FLUX.2-pro uses reference_images parameter with data URI format
+      requestBody.reference_images = [imageDataUri];
     }
 
     console.log(`[${styleId}] Request body keys:`, Object.keys(requestBody));
