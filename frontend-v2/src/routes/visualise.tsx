@@ -127,11 +127,21 @@ function VisualisePage() {
     window.print();
   };
 
-  const goToMix = () => {
-    if (!activeImage || selected === "Original") return;
-    // For generated images, pass the image URL directly
-    // We'll use the upload file with the generated image URL as preview
-    setMixImage(upload!.file, activeImage);
+  const goToMix = async () => {
+    if (!activeImage || selected === "Original" || !upload) return;
+    try {
+      // For generated images from Together AI, fetch and create a File
+      const res = await fetch(activeImage);
+      if (!res.ok) throw new Error('Failed to fetch image');
+      const blob = await res.blob();
+      const ext = blob.type === "image/png" ? "png" : "jpg";
+      const file = new File([blob], `palette-${selected.toLowerCase()}.${ext}`, { type: blob.type });
+      setMixImage(file, activeImage);
+    } catch (err) {
+      // Fallback to original upload if fetch fails
+      console.error('Failed to fetch generated image for mix:', err);
+      setMixImage(upload.file, activeImage);
+    }
     navigate({ to: "/mix" });
   };
 
