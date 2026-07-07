@@ -43,15 +43,7 @@ function VisualisePage() {
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
 
   const styleConfig = useMemo(
-    () => {
-      if (selected === "Original") {
-        console.log('[visualise] styleConfig: Original selected, returning undefined');
-        return undefined;
-      }
-      const config = getStyleVariations(selected);
-      console.log('[visualise] styleConfig for selected="' + selected + '":', config);
-      return config;
-    },
+    () => (selected !== "Original" ? getStyleVariations(selected) : undefined),
     [selected]
   );
 
@@ -257,11 +249,10 @@ function VisualisePage() {
             </div>
 
             {/* Style Parameters */}
-            {selected !== "Original" && (
+            {styleConfig && selected !== "Original" && (
               <div className="space-y-4 border-t border-navy/10 pt-6">
-                <h3 className="font-display text-sm text-navy font-semibold">Style Options{!styleConfig && ' (no config found)'}</h3>
-                {!styleConfig && <p className="text-xs text-destructive">DEBUG: styleConfig is undefined for "{selected}"</p>}
-                {styleConfig && styleConfig.variations.map((variation) => (
+                <h3 className="font-display text-sm text-navy font-semibold">Style Options</h3>
+                {styleConfig.variations.map((variation) => (
                   <div key={variation.id} className="space-y-2">
                     <label className="block text-xs font-medium text-navy/70">
                       {variation.name}

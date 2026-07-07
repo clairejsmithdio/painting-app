@@ -295,10 +295,7 @@ export function getStyleVariations(styleId: string): StyleConfig | undefined {
 
   const normalized = styleId.toLowerCase();
   const fullName = styleMap[normalized] || normalized;
-  const result = STYLE_VARIATIONS[fullName];
-  console.log(`[getStyleVariations] styleId="${styleId}" normalized="${normalized}" fullName="${fullName}" found=${!!result}`);
-  if (result) console.log(`[getStyleVariations] variations:`, result.variations.length, result.variations.map(v => v.id));
-  return result;
+  return STYLE_VARIATIONS[fullName];
 }
 
 export function getVariationPromptText(styleId: string, variationId: string, optionId: string): string {
