@@ -15,6 +15,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MixRouteImport } from './routes/mix'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as InspireRouteImport } from './routes/inspire'
+import { Route as ImagineRouteImport } from './routes/imagine'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -50,6 +51,11 @@ const InspireRoute = InspireRouteImport.update({
   path: '/inspire',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImagineRoute = ImagineRouteImport.update({
+  id: '/imagine',
+  path: '/imagine',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityRoute = CommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRouteWithChildren
+  '/imagine': typeof ImagineRoute
   '/inspire': typeof InspireRoute
   '/library': typeof LibraryRoute
   '/mix': typeof MixRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRouteWithChildren
+  '/imagine': typeof ImagineRoute
   '/inspire': typeof InspireRoute
   '/library': typeof LibraryRoute
   '/mix': typeof MixRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRouteWithChildren
+  '/imagine': typeof ImagineRoute
   '/inspire': typeof InspireRoute
   '/library': typeof LibraryRoute
   '/mix': typeof MixRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/community'
+    | '/imagine'
     | '/inspire'
     | '/library'
     | '/mix'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/community'
+    | '/imagine'
     | '/inspire'
     | '/library'
     | '/mix'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/community'
+    | '/imagine'
     | '/inspire'
     | '/library'
     | '/mix'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   CommunityRoute: typeof CommunityRouteWithChildren
+  ImagineRoute: typeof ImagineRoute
   InspireRoute: typeof InspireRoute
   LibraryRoute: typeof LibraryRoute
   MixRoute: typeof MixRoute
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspireRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/imagine': {
+      id: '/imagine'
+      path: '/imagine'
+      fullPath: '/imagine'
+      preLoaderRoute: typeof ImagineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community': {
       id: '/community'
       path: '/community'
@@ -250,6 +270,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   CommunityRoute: CommunityRouteWithChildren,
+  ImagineRoute: ImagineRoute,
   InspireRoute: InspireRoute,
   LibraryRoute: LibraryRoute,
   MixRoute: MixRoute,

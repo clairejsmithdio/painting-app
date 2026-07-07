@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { paintingRoutes } from './routes/painting';
+import { imagineRoutes } from './routes/imagine';
 import communityRoutes from './routes/community';
 
 const envPath = path.join(process.cwd(), '.env.local');
@@ -24,6 +25,7 @@ app.use(express.urlencoded({ limit: '50mb' }));
 
 // Routes
 app.use('/api/painting', paintingRoutes);
+app.use('/api', imagineRoutes);
 app.use('/api/community', communityRoutes);
 
 // Health check
