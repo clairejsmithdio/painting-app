@@ -261,7 +261,7 @@ function VisualisePage() {
               <div className="space-y-4 border-t border-navy/10 pt-6">
                 <h3 className="font-display text-sm text-navy font-semibold">Style Options{!styleConfig && ' (no config found)'}</h3>
                 {!styleConfig && <p className="text-xs text-destructive">DEBUG: styleConfig is undefined for "{selected}"</p>}
-                {styleConfig.variations.map((variation) => (
+                {styleConfig && styleConfig.variations.map((variation) => (
                   <div key={variation.id} className="space-y-2">
                     <label className="block text-xs font-medium text-navy/70">
                       {variation.name}
