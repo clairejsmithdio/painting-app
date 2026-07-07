@@ -330,13 +330,20 @@ function VisualisePage() {
                     alt={selected}
                     className="animate-fade-up"
                   />
-                ) : (
+                ) : loading ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-canvas/60 backdrop-blur-sm p-8">
                     <ProgressStages
-                      active={loading || !activeImage}
+                      active={true}
                       stages={VISUALISE_STAGES}
                       title={`Painting in ${selected}…`}
                     />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-canvas/60 backdrop-blur-sm p-8 text-center">
+                    <div className="text-navy/40">
+                      <p className="text-sm">Select your options above,</p>
+                      <p className="text-sm">then click Generate Image</p>
+                    </div>
                   </div>
                 )}
               </div>
