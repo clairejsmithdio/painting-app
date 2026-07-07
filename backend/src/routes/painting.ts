@@ -23,7 +23,7 @@ interface ColorMixingRequest {
 paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
   try {
     const { imageBase64, image, style } = req.body as PaintingRequest;
-    const base64Data = imageBase64 || image;
+    let base64Data = imageBase64 || image;
 
     console.log('\n📸 Visualize endpoint called');
     console.log(`imageBase64 present: ${!!imageBase64}, length: ${imageBase64?.length || 0}`);
@@ -33,6 +33,12 @@ paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
 
     if (!base64Data) {
       return res.status(400).json({ error: 'imageBase64 or image is required' });
+    }
+
+    // Strip data URI prefix if present (data:image/...;base64,...)
+    if (base64Data.startsWith('data:')) {
+      console.log('[route] Stripping data URI prefix from base64');
+      base64Data = base64Data.split(',')[1] || base64Data;
     }
 
     const imageBuffer = Buffer.from(base64Data, 'base64');
