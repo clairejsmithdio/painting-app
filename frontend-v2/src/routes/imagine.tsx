@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Download, Sparkles, Wand2, Beaker, Share2, Printer } from "lucide-react";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, imaginePaint } from "@/lib/api";
 import {
   getStyleVariations,
   getVariationPromptText,
@@ -48,6 +48,7 @@ function ImaginePage() {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState<StyleId>("Watercolor");
   const [loading, setLoading] = useState(false);
+  const [waking, setWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
@@ -98,17 +99,12 @@ function ImaginePage() {
       paramsForApi[variationId] = getVariationPromptText(style, variationId, optionId);
     }
     setLoading(true);
+    setWaking(false);
     try {
-      const res = await fetch(`${API_BASE}/api/imagine`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt, style, styleParams: paramsForApi }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Request failed with status ${res.status}`);
-      }
-      const data = (await res.json()) as { imageUrl: string };
+      const data = await imaginePaint(
+        { prompt, style, styleParams: paramsForApi },
+        () => setWaking(true),
+      );
       if (!data.imageUrl) {
         throw new Error("No image URL in response");
       }
@@ -118,6 +114,7 @@ function ImaginePage() {
       setError((err as Error).message || "Failed to generate image");
     } finally {
       setLoading(false);
+      setWaking(false);
     }
   };
 
@@ -356,6 +353,11 @@ function ImaginePage() {
             <Wand2 className="h-5 w-5" />
             {loading ? "Painting…" : `Paint in ${style}`}
           </button>
+          {loading && waking && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Waking the server up and retrying — the free tier can take a moment.
+            </p>
+          )}
         </div>
 
         {/* Result / loading */}

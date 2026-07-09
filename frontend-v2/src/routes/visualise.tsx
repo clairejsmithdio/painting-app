@@ -45,6 +45,7 @@ function VisualisePage() {
   const [selected, setSelected] = useState<StyleId>("Original");
   const [results, setResults] = useState<Record<string, VisualizeStyle>>({});
   const [loading, setLoading] = useState(false);
+  const [waking, setWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
   const [skillLevel, setSkillLevel] = useState("intermediate");
@@ -182,8 +183,15 @@ function VisualisePage() {
       paramsForApi[variationId] = getVariationPromptText(selected, variationId, optionId);
     }
     setLoading(true);
+    setWaking(false);
     try {
-      const res = await visualizePainting(upload.file, selected, hint?.colors, paramsForApi);
+      const res = await visualizePainting(
+        upload.file,
+        selected,
+        hint?.colors,
+        paramsForApi,
+        () => setWaking(true),
+      );
       const match =
         res.styles.find((s) => s.label?.toLowerCase() === selected.toLowerCase()) ?? res.styles[0];
       if (match) setResults((prev) => ({ ...prev, [selected]: match }));
@@ -191,6 +199,7 @@ function VisualisePage() {
       setError((err as Error).message ?? "Failed to generate style");
     } finally {
       setLoading(false);
+      setWaking(false);
     }
   };
 
@@ -366,6 +375,11 @@ function VisualisePage() {
                     >
                       {loading ? "Generating…" : "Generate Image"}
                     </button>
+                    {loading && waking && (
+                      <p className="mt-2 text-center text-xs text-muted-foreground">
+                        Waking the server up and retrying — the free tier can take a moment.
+                      </p>
+                    )}
                   </div>
                 )}
               </>

@@ -1,6 +1,13 @@
 import axios from 'axios';
 import sharp from 'sharp';
 
+// Keep sharp's memory footprint small on the constrained Render instance.
+// libvips' operation cache and one-thread-per-core default can spike memory
+// enough to get the container OOM-killed mid-request when decoding a large
+// (e.g. 12 MP phone) photo. These settings are process-wide.
+sharp.cache(false);
+sharp.concurrency(1);
+
 const PAINTING_STYLES = [
   {
     id: 'watercolor',
@@ -78,13 +85,13 @@ async function normalizeImageForAPI(imageBuffer: Buffer): Promise<string> {
   try {
     console.log(`[normalizeImageForAPI] Input buffer size: ${imageBuffer.length} bytes`);
 
-    // Get original dimensions
-    const metadata = await sharp(imageBuffer).metadata();
-    console.log(`[normalizeImageForAPI] Original dimensions: ${metadata.width}x${metadata.height}`);
-
-    // Resize to fit within 768x768 while preserving aspect ratio
-    // Use white background padding to reach 768x768
-    const resized = await sharp(imageBuffer)
+    // Resize to fit within 768x768 while preserving aspect ratio, padding to a
+    // square with white. `failOn: 'none'` tolerates slightly truncated JPEGs;
+    // `.rotate()` bakes in EXIF orientation so portrait phone photos aren't
+    // sideways. For JPEG input sharp shrinks on load, so the full-resolution
+    // image is never fully decoded into memory — keeping peak usage low.
+    const resized = await sharp(imageBuffer, { failOn: 'none' })
+      .rotate()
       .resize(768, 768, {
         fit: 'contain',
         background: { r: 255, g: 255, b: 255, alpha: 1 },
