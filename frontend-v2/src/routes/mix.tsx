@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Beaker, Loader2, BookmarkPlus, LogIn, LibraryBig, Lock, Globe } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { ArrowLeft, Beaker, Loader2, BookmarkPlus, LogIn, LibraryBig, Lock, Globe, Pipette } from "lucide-react";
 import { getMixImage, clearMixImage } from "@/lib/mix-store";
 import {
   extractColors,
@@ -55,6 +55,12 @@ function MixPage() {
   const [extracting, setExtracting] = useState(false);
   const [mixing, setMixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [eyedropper, setEyedropper] = useState(false);
+  // Off-screen canvas of the reference image, used to sample pixel colours
+  // for the eyedropper. Built from the File (a same-origin blob) so the canvas
+  // is never CORS-tainted, even when the preview URL is a remote CDN image.
+  const sampleRef = useRef<{ canvas: HTMLCanvasElement; w: number; h: number } | null>(null);
 
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -114,6 +120,90 @@ function MixPage() {
       cancelled = true;
     };
   }, [selectedHex, brand]);
+
+  // Build the off-screen sampling canvas from the reference File.
+  useEffect(() => {
+    if (!file) return;
+    let cancelled = false;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        sampleRef.current = { canvas, w: canvas.width, h: canvas.height };
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
+    return () => {
+      cancelled = true;
+      sampleRef.current = null;
+    };
+  }, [file]);
+
+  // Sample the colour under the click and add it to the palette as a new option.
+  const sampleColor = (e: MouseEvent<HTMLImageElement>) => {
+    if (!eyedropper) return;
+    const sample = sampleRef.current;
+    if (!sample) return;
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const natW = el.naturalWidth || sample.w;
+    const natH = el.naturalHeight || sample.h;
+    // The image is displayed with object-cover, so invert that mapping to find
+    // which source pixel was clicked.
+    const scale = Math.max(rect.width / natW, rect.height / natH);
+    const dispW = natW * scale;
+    const dispH = natH * scale;
+    const offX = (dispW - rect.width) / 2;
+    const offY = (dispH - rect.height) / 2;
+    const fx = Math.min(0.9999, Math.max(0, (cx + offX) / dispW));
+    const fy = Math.min(0.9999, Math.max(0, (cy + offY) / dispH));
+
+    const ctx = sample.canvas.getContext("2d");
+    if (!ctx) return;
+    const px = Math.floor(fx * sample.w);
+    const py = Math.floor(fy * sample.h);
+    // Average a small neighbourhood so a single noisy pixel doesn't skew it.
+    const radius = 2;
+    const x0 = Math.max(0, px - radius);
+    const y0 = Math.max(0, py - radius);
+    const w = Math.min(sample.w - x0, radius * 2 + 1);
+    const h = Math.min(sample.h - y0, radius * 2 + 1);
+    let R = 0, G = 0, B = 0, n = 0;
+    try {
+      const { data } = ctx.getImageData(x0, y0, w, h);
+      for (let i = 0; i < data.length; i += 4) {
+        R += data[i];
+        G += data[i + 1];
+        B += data[i + 2];
+        n++;
+      }
+    } catch {
+      return;
+    }
+    if (!n) return;
+    R = Math.round(R / n);
+    G = Math.round(G / n);
+    B = Math.round(B / n);
+    const hex =
+      "#" + [R, G, B].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+
+    setColors((prev) => {
+      const list = prev ?? [];
+      if (list.some((c) => c.hex.toUpperCase() === hex)) return list;
+      return [...list, { hex, rgb: [R, G, B] }];
+    });
+    setSelectedHex(hex);
+  };
 
   const back = () => {
     clearMixImage();
@@ -231,8 +321,10 @@ function MixPage() {
                     >
                       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/55 to-transparent px-2 py-1.5 text-[10px] font-medium text-white">
                         <span className="tracking-wide">{c.hex.toUpperCase()}</span>
-                        {c.percentage != null && (
+                        {c.percentage != null ? (
                           <span className="opacity-80">{Math.round(c.percentage)}%</span>
+                        ) : (
+                          <Pipette className="h-2.5 w-2.5 opacity-80" aria-label="Picked colour" />
                         )}
                       </div>
                     </button>
@@ -246,7 +338,23 @@ function MixPage() {
 
           <div className="order-1 lg:order-2 relative overflow-hidden rounded-3xl bg-card shadow-sm aspect-[4/3]">
             {preview && (
-              <img src={preview} alt="Reference" className="h-full w-full object-cover" />
+              <img
+                src={preview}
+                alt="Reference"
+                onClick={sampleColor}
+                className={`h-full w-full object-cover ${eyedropper ? "cursor-crosshair" : ""}`}
+              />
+            )}
+            {preview && !extracting && (
+              <button
+                onClick={() => setEyedropper((v) => !v)}
+                className={`absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur transition ${
+                  eyedropper ? "bg-navy text-white" : "bg-white/90 text-navy hover:bg-white"
+                }`}
+              >
+                <Pipette className="h-3.5 w-3.5" />
+                {eyedropper ? "Tap a colour in the image" : "Pick a colour"}
+              </button>
             )}
             {extracting && (
               <div className="absolute inset-0 flex items-center justify-center bg-canvas/60 backdrop-blur-sm p-8">

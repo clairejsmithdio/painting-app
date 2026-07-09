@@ -299,7 +299,7 @@ export function getStyleVariations(styleId: string): StyleConfig | undefined {
 }
 
 // Detailed prompt instructions for each variation to guide the AI model more effectively
-const VARIATION_PROMPT_INSTRUCTIONS: Record<string, Record<string, string>> = {
+const VARIATION_PROMPT_INSTRUCTIONS: Record<string, string> = {
   'continuous_line': 'ONLY unbroken flowing lines, no fills or shading, single continuous line style, minimalist',
   'crosshatching': 'Use only parallel and intersecting lines for shading, no fills, crosshatching technique',
   'stippling': 'Use only small dots and points for shading, no lines, pure stippling technique',
@@ -321,6 +321,44 @@ const VARIATION_PROMPT_INSTRUCTIONS: Record<string, Record<string, string>> = {
   'glazed': 'Semi-transparent layered finish, subtle gloss, layered depth',
   'opaque_layering': 'Solid coverage, opaque application, bold colors, flat graphic style',
 };
+
+// Skill level controls how much detail/complexity the model puts in, so the
+// result is achievable for the painter. This is injected into the prompt
+// alongside the style options.
+export interface SkillLevel {
+  id: string;
+  label: string;
+  description: string;
+  prompt: string;
+}
+
+export const SKILL_LEVELS: SkillLevel[] = [
+  {
+    id: 'beginner',
+    label: 'Beginner',
+    description: 'Simple shapes, few colours',
+    prompt:
+      'IMPORTANT: keep this simple and achievable for a beginner painter — bold simple shapes, minimal fine detail, a limited palette of only a few colours, large loose flat washes, soft simplified forms and few elements; avoid anything intricate, busy, highly textured or photorealistic',
+  },
+  {
+    id: 'intermediate',
+    label: 'Intermediate',
+    description: 'A balanced amount of detail',
+    prompt:
+      'aim for an intermediate level of difficulty — a moderate amount of detail with some layering, a manageable range of colours and shapes, not overly intricate',
+  },
+  {
+    id: 'advanced',
+    label: 'Advanced',
+    description: 'Intricate and detailed',
+    prompt:
+      'make it rich and challenging for an advanced painter — intricate fine detail, complex layering, subtle colour transitions and sophisticated technique',
+  },
+];
+
+export function getSkillPromptText(skillId: string): string {
+  return SKILL_LEVELS.find((s) => s.id === skillId)?.prompt ?? '';
+}
 
 export function getVariationPromptText(styleId: string, variationId: string, optionId: string): string {
   // Check for detailed instruction first

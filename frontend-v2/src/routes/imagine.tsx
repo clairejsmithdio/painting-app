@@ -3,7 +3,12 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Download, Sparkles, Wand2, Beaker, Share2, Printer } from "lucide-react";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { API_BASE } from "@/lib/api";
-import { getStyleVariations, getVariationPromptText } from "@/lib/style-variations";
+import {
+  getStyleVariations,
+  getVariationPromptText,
+  getSkillPromptText,
+  SKILL_LEVELS,
+} from "@/lib/style-variations";
 import { setMixImage } from "@/lib/mix-store";
 import { setShareDraft } from "@/lib/share-store";
 import { cn } from "@/lib/utils";
@@ -46,6 +51,7 @@ function ImaginePage() {
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
+  const [skillLevel, setSkillLevel] = useState("intermediate");
 
   const paintableStyles = useMemo(
     () => STYLE_SWATCHES.filter((s) => s.id !== "Original"),
@@ -84,7 +90,10 @@ function ImaginePage() {
       return;
     }
     // Convert the selected option IDs into rich prompt instructions for the model.
+    // Skill level goes first so it leads the style details and shapes overall complexity.
     const paramsForApi: Record<string, string> = {};
+    const skillText = getSkillPromptText(skillLevel);
+    if (skillText) paramsForApi.skill_level = skillText;
     for (const [variationId, optionId] of Object.entries(styleParams)) {
       paramsForApi[variationId] = getVariationPromptText(style, variationId, optionId);
     }
@@ -298,6 +307,39 @@ function ImaginePage() {
             </div>
           </section>
         )}
+
+        {/* Skill level */}
+        <section className="rounded-3xl bg-white p-4 sm:p-6 shadow-sm">
+          <div className="mb-3">
+            <div className="text-sm font-medium text-navy">Skill level</div>
+            <div className="text-xs text-muted-foreground">
+              We'll match the amount of detail to your experience.
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {SKILL_LEVELS.map((lvl) => {
+              const active = skillLevel === lvl.id;
+              return (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  onClick={() => setSkillLevel(lvl.id)}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition",
+                    active
+                      ? "border-navy shadow-md ring-2 ring-navy/20 bg-navy/5"
+                      : "border-navy/10 hover:border-navy/30 hover:-translate-y-0.5 bg-white",
+                  )}
+                >
+                  <div className="text-xs font-medium text-navy">{lvl.label}</div>
+                  <div className="mt-1 text-[10px] leading-snug text-navy/60">
+                    {lvl.description}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         {/* Generate */}
         <div className="sticky bottom-4 z-10">

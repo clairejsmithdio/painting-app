@@ -8,7 +8,13 @@ import { setShareDraft } from "@/lib/share-store";
 import { extractColors, API_BASE } from "@/lib/api";
 import { STYLE_SWATCHES, type StyleId } from "@/lib/styles";
 import { visualizePainting, type VisualizeStyle } from "@/lib/api";
-import { getStyleVariations, getVariationPromptText, type StyleConfig } from "@/lib/style-variations";
+import {
+  getStyleVariations,
+  getVariationPromptText,
+  getSkillPromptText,
+  SKILL_LEVELS,
+  type StyleConfig,
+} from "@/lib/style-variations";
 import { cn } from "@/lib/utils";
 import { ProgressStages } from "@/components/ProgressStages";
 import { ZoomableImage } from "@/components/ZoomableImage";
@@ -41,6 +47,7 @@ function VisualisePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [styleParams, setStyleParams] = useState<Record<string, string>>({});
+  const [skillLevel, setSkillLevel] = useState("intermediate");
 
   const styleConfig = useMemo(
     () => (selected !== "Original" ? getStyleVariations(selected) : undefined),
@@ -167,7 +174,10 @@ function VisualisePage() {
   const generateImage = async () => {
     if (selected === "Original" || !styleConfig || !allParamsSelected || !upload) return;
     // Convert the selected option IDs into rich prompt instructions for the model.
+    // Skill level goes first so it leads the style details and shapes overall complexity.
     const paramsForApi: Record<string, string> = {};
+    const skillText = getSkillPromptText(skillLevel);
+    if (skillText) paramsForApi.skill_level = skillText;
     for (const [variationId, optionId] of Object.entries(styleParams)) {
       paramsForApi[variationId] = getVariationPromptText(selected, variationId, optionId);
     }
@@ -311,6 +321,37 @@ function VisualisePage() {
                       </div>
                     );
                     })}
+
+                    {/* Skill level */}
+                    <div className="space-y-3">
+                      <h3 className="font-display text-sm text-navy font-semibold">
+                        Skill level
+                      </h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        {SKILL_LEVELS.map((lvl) => {
+                          const active = skillLevel === lvl.id;
+                          return (
+                            <button
+                              key={lvl.id}
+                              onClick={() => setSkillLevel(lvl.id)}
+                              disabled={loading}
+                              title={lvl.description}
+                              className={cn(
+                                "rounded-lg border text-left transition p-3 disabled:cursor-not-allowed",
+                                active
+                                  ? "border-navy shadow-md ring-2 ring-navy/20 bg-navy/5"
+                                  : "border-navy/10 hover:border-navy/30 hover:-translate-y-0.5 bg-white"
+                              )}
+                            >
+                              <div className="font-medium text-xs text-navy">{lvl.label}</div>
+                              <div className="text-[10px] text-navy/60 mt-1">
+                                {lvl.description}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     {/* Generate Button */}
                     <button
