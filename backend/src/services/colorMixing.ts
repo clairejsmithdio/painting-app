@@ -54,58 +54,144 @@ function colorDistance(
   return Math.sqrt(dr * dr + dg * dg + db * db);
 }
 
-// Find closest pigment color to a target RGB color
-function findClosestPigment(
-  targetColor: { r: number; g: number; b: number },
-  brandId: string
-): Array<{ name: string; hex: string; distance: number }> {
-  const brand = paints.brands.find((b) => b.id === brandId);
-  if (!brand) return [];
-
-  return brand.colors
-    .map((color) => ({
-      name: color.name,
-      hex: color.hex,
-      distance: colorDistance(targetColor, hexToRgb(color.hex)),
-    }))
-    .sort((a, b) => a.distance - b.distance);
+type RGB = { r: number; g: number; b: number };
+interface Pigment {
+  name: string;
+  hex: string;
+  rgb: RGB;
+}
+interface Candidate {
+  pigments: Pigment[];
+  weights: number[]; // parallel to pigments, sum to 1
+  error: number; // distance of the blended colour from the target
 }
 
-// Simple pigment mixer - creates a recipe based on closest matching pigments
-export function mixColors(
-  targetHex: string,
-  brandId: string
-): PigmentRecipe | null {
+// Model a paint mix as a weighted linear blend of pigment RGBs. This is a
+// rough approximation (real paint mixing is subtractive), but good enough to
+// judge which combination of pigments lands closest to the target colour.
+function blend(pigments: Pigment[], weights: number[]): RGB {
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < pigments.length; i++) {
+    r += weights[i] * pigments[i].rgb.r;
+    g += weights[i] * pigments[i].rgb.g;
+    b += weights[i] * pigments[i].rgb.b;
+  }
+  return { r, g, b };
+}
+
+function bestSingle(pigs: Pigment[], target: RGB): Candidate | null {
+  let best: Candidate | null = null;
+  for (const p of pigs) {
+    const error = colorDistance(p.rgb, target);
+    if (!best || error < best.error) best = { pigments: [p], weights: [1], error };
+  }
+  return best;
+}
+
+// Best 2-pigment blend, using the closed-form optimal mix ratio for each pair.
+function bestPair(pigs: Pigment[], target: RGB): Candidate | null {
+  let best: Candidate | null = null;
+  for (let i = 0; i < pigs.length; i++) {
+    for (let j = i + 1; j < pigs.length; j++) {
+      const a = pigs[i].rgb, b = pigs[j].rgb;
+      const dx = a.r - b.r, dy = a.g - b.g, dz = a.b - b.b;
+      const denom = dx * dx + dy * dy + dz * dz;
+      // t = weight of pigment a that minimises distance to target, clamped to [0,1]
+      let t = denom === 0 ? 0.5 : ((target.r - b.r) * dx + (target.g - b.g) * dy + (target.b - b.b) * dz) / denom;
+      t = Math.max(0, Math.min(1, t));
+      const weights = [t, 1 - t];
+      const error = colorDistance(blend([pigs[i], pigs[j]], weights), target);
+      if (!best || error < best.error) best = { pigments: [pigs[i], pigs[j]], weights, error };
+    }
+  }
+  return best;
+}
+
+// Best 3-pigment blend over a coarse weight grid (each pigment at least 10%).
+function bestTriple(pigs: Pigment[], target: RGB): Candidate | null {
+  let best: Candidate | null = null;
+  const step = 0.1;
+  for (let i = 0; i < pigs.length; i++) {
+    for (let j = i + 1; j < pigs.length; j++) {
+      for (let k = j + 1; k < pigs.length; k++) {
+        const tri = [pigs[i], pigs[j], pigs[k]];
+        for (let w1 = step; w1 < 1; w1 += step) {
+          for (let w2 = step; w2 < 1 - w1 + 1e-9; w2 += step) {
+            const w3 = 1 - w1 - w2;
+            if (w3 < step - 1e-9) continue;
+            const weights = [w1, w2, w3];
+            const error = colorDistance(blend(tri, weights), target);
+            if (!best || error < best.error) best = { pigments: tri, weights, error };
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+// Turn blend weights into whole-number percentages that sum to exactly 100,
+// sorted from most to least. Drops any pigment that rounds to 0%.
+function toPercentages(cand: Candidate): { p: Pigment; pct: number }[] {
+  const rows = cand.pigments
+    .map((p, i) => ({ p, pct: Math.round(cand.weights[i] * 100) }))
+    .filter((row) => row.pct > 0)
+    .sort((a, b) => b.pct - a.pct);
+  // Fix rounding drift so the percentages total 100.
+  const sum = rows.reduce((s, r) => s + r.pct, 0);
+  if (rows.length > 0 && sum !== 100) rows[0].pct += 100 - sum;
+  return rows;
+}
+
+function buildNotes(rows: { p: Pigment; pct: number }[], close: boolean): string {
+  if (rows.length === 1) {
+    return close
+      ? `${rows[0].p.name} matches this colour closely on its own — use it straight, no mixing needed.`
+      : `${rows[0].p.name} is the nearest single pigment for this colour — use it as your base; mixing the others in this set won't get noticeably closer.`;
+  }
+  if (rows.length === 2) {
+    return `Mix ${rows[0].p.name} and ${rows[1].p.name} — mostly ${rows[0].p.name} (${rows[0].pct}%), adjusted with ${rows[1].p.name} (${rows[1].pct}%). Blend thoroughly and tweak the ratio to taste.`;
+  }
+  return `Start with ${rows[0].p.name} as the base, then work in ${rows
+    .slice(1)
+    .map((r) => r.p.name)
+    .join(" and ")} a little at a time until the tone matches. Add the smaller amounts gradually.`;
+}
+
+// Pick the fewest pigments that get close enough: one if a single pigment
+// already matches, two if a pair lands meaningfully closer, three only if the
+// third still helps. Percentages come from the actual blend that best matches.
+export function mixColors(targetHex: string, brandId: string): PigmentRecipe | null {
   const brand = paints.brands.find((b) => b.id === brandId);
   if (!brand) return null;
 
   const targetRgb = hexToRgb(targetHex);
-  const closestColors = findClosestPigment(targetRgb, brandId);
+  // Consider the nearest handful of pigments so the combinations stay relevant.
+  const nearest: Pigment[] = brand.colors
+    .map((color) => ({ name: color.name, hex: color.hex, rgb: hexToRgb(color.hex) }))
+    .sort((a, b) => colorDistance(a.rgb, targetRgb) - colorDistance(b.rgb, targetRgb))
+    .slice(0, 6);
 
-  if (closestColors.length === 0) return null;
+  if (nearest.length === 0) return null;
 
-  // Simple recipe: use top 3 closest colors with weighted percentages
-  const top3 = closestColors.slice(0, 3);
-  const totalDistance = top3.reduce((sum, c) => sum + c.distance, 1);
+  const single = bestSingle(nearest, targetRgb);
+  const pair = nearest.length >= 2 ? bestPair(nearest, targetRgb) : null;
+  const triple = nearest.length >= 3 ? bestTriple(nearest, targetRgb) : null;
 
-  const recipe: PigmentRecipe = {
-    pigments: top3.map((c) => ({
-      name: c.name,
-      hex: c.hex,
-      percentage: Math.round(((totalDistance - c.distance) / totalDistance) * 100),
-    })),
+  // Only add another pigment when it cuts the colour error by a worthwhile margin.
+  const IMPROVE_MIN = 8;
+  let chosen = single!;
+  if (pair && pair.error < chosen.error - IMPROVE_MIN) chosen = pair;
+  if (triple && triple.error < chosen.error - IMPROVE_MIN) chosen = triple;
+
+  const rows = toPercentages(chosen);
+  const closeMatch = chosen.error <= 15; // RGB distance considered a tight match
+
+  return {
+    pigments: rows.map((row) => ({ name: row.p.name, hex: row.p.hex, percentage: row.pct })),
     resultColor: targetHex,
-    mixing_notes: `Mix ${top3[0].name} as the base, then add ${top3[1].name} and ${top3[2].name} to adjust the tone. Start with small amounts of the secondary colors and mix thoroughly.`,
+    mixing_notes: buildNotes(rows, closeMatch),
   };
-
-  // Normalize percentages to 100
-  const total = recipe.pigments.reduce((sum, p) => sum + p.percentage, 0);
-  recipe.pigments = recipe.pigments.map((p) => ({
-    ...p,
-    percentage: Math.round((p.percentage / total) * 100),
-  }));
-
-  return recipe;
 }
 
 // Extract the dominant colours from an image using sharp.
