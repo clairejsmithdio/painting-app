@@ -43,18 +43,8 @@ function rgbToHex(r: number, g: number, b: number): string {
   );
 }
 
-// Calculate color distance (simple Euclidean distance in RGB space)
-function colorDistance(
-  color1: { r: number; g: number; b: number },
-  color2: { r: number; g: number; b: number }
-): number {
-  const dr = color1.r - color2.r;
-  const dg = color1.g - color2.g;
-  const db = color1.b - color2.b;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
-}
-
 type RGB = { r: number; g: number; b: number };
+type Lab = { L: number; a: number; b: number };
 interface Pigment {
   name: string;
   hex: string;
@@ -63,52 +53,89 @@ interface Pigment {
 interface Candidate {
   pigments: Pigment[];
   weights: number[]; // parallel to pigments, sum to 1
-  error: number; // distance of the blended colour from the target
+  error: number;     // perceptual ΔE between the mixed colour and the target
+  mixedRgb: RGB;     // the colour this mix actually produces
 }
 
-// Model a paint mix as a weighted linear blend of pigment RGBs. This is a
-// rough approximation (real paint mixing is subtractive), but good enough to
-// judge which combination of pigments lands closest to the target colour.
-function blend(pigments: Pigment[], weights: number[]): RGB {
-  let r = 0, g = 0, b = 0;
-  for (let i = 0; i < pigments.length; i++) {
-    r += weights[i] * pigments[i].rgb.r;
-    g += weights[i] * pigments[i].rgb.g;
-    b += weights[i] * pigments[i].rgb.b;
-  }
-  return { r, g, b };
+// --- Perceptual colour space: sRGB -> CIELAB, difference as ΔE (CIE76) ---
+// Straight-line RGB distance doesn't match how the eye sees colour. Comparing
+// in CIELAB (where equal distances look roughly equally different) is what lets
+// the matcher tell a dark maroon from a burnt orange.
+function srgbToLinear(v: number): number {
+  const u = v / 255;
+  return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+}
+function rgbToLab({ r, g, b }: RGB): Lab {
+  const R = srgbToLinear(r), G = srgbToLinear(g), B = srgbToLinear(b);
+  // linear sRGB -> XYZ (D65 white point), then XYZ -> Lab
+  const x = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
+  const y = R * 0.2126 + G * 0.7152 + B * 0.0722;
+  const z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(x), fy = f(y), fz = f(z);
+  return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+}
+function deltaE(a: Lab, b: Lab): number {
+  return Math.hypot(a.L - b.L, a.a - b.a, a.b - b.b);
 }
 
-function bestSingle(pigs: Pigment[], target: RGB): Candidate | null {
+// --- Subtractive mixing: single-constant Kubelka-Munk per RGB channel ---
+// Averaging RGB values mixes colours like light (blue + yellow -> grey), not
+// like paint. Kubelka-Munk is the physical model for how pigments combine.
+// The full version needs per-wavelength spectra; this approximation treats each
+// channel's value as a reflectance, converts to the absorption/scatter ratio
+// K/S, mixes K/S by concentration, then converts back — so mixes darken and
+// shift hue the way real paint does (blue + yellow -> green).
+function ksFromReflectance(reflectance: number): number {
+  const R = Math.min(Math.max(reflectance, 0.004), 0.996);
+  return ((1 - R) * (1 - R)) / (2 * R);
+}
+function reflectanceFromKs(ks: number): number {
+  return 1 + ks - Math.sqrt(ks * ks + 2 * ks);
+}
+function mixPigments(pigments: Pigment[], weights: number[]): RGB {
+  const channel = (key: 'r' | 'g' | 'b') => {
+    let ks = 0;
+    for (let i = 0; i < pigments.length; i++) {
+      ks += weights[i] * ksFromReflectance(pigments[i].rgb[key] / 255);
+    }
+    return Math.round(reflectanceFromKs(ks) * 255);
+  };
+  return { r: channel('r'), g: channel('g'), b: channel('b') };
+}
+
+function evaluate(pigments: Pigment[], weights: number[], targetLab: Lab): Candidate {
+  const mixedRgb = mixPigments(pigments, weights);
+  return { pigments, weights, error: deltaE(rgbToLab(mixedRgb), targetLab), mixedRgb };
+}
+
+function bestSingle(pigs: Pigment[], targetLab: Lab): Candidate | null {
   let best: Candidate | null = null;
   for (const p of pigs) {
-    const error = colorDistance(p.rgb, target);
-    if (!best || error < best.error) best = { pigments: [p], weights: [1], error };
+    const c = evaluate([p], [1], targetLab);
+    if (!best || c.error < best.error) best = c;
   }
   return best;
 }
 
-// Best 2-pigment blend, using the closed-form optimal mix ratio for each pair.
-function bestPair(pigs: Pigment[], target: RGB): Candidate | null {
+// Best 2-pigment mix over a concentration grid (KM mixing is non-linear, so
+// there's no closed-form ratio — we scan). The palette is small, so this is cheap.
+function bestPair(pigs: Pigment[], targetLab: Lab): Candidate | null {
   let best: Candidate | null = null;
+  const step = 0.05;
   for (let i = 0; i < pigs.length; i++) {
     for (let j = i + 1; j < pigs.length; j++) {
-      const a = pigs[i].rgb, b = pigs[j].rgb;
-      const dx = a.r - b.r, dy = a.g - b.g, dz = a.b - b.b;
-      const denom = dx * dx + dy * dy + dz * dz;
-      // t = weight of pigment a that minimises distance to target, clamped to [0,1]
-      let t = denom === 0 ? 0.5 : ((target.r - b.r) * dx + (target.g - b.g) * dy + (target.b - b.b) * dz) / denom;
-      t = Math.max(0, Math.min(1, t));
-      const weights = [t, 1 - t];
-      const error = colorDistance(blend([pigs[i], pigs[j]], weights), target);
-      if (!best || error < best.error) best = { pigments: [pigs[i], pigs[j]], weights, error };
+      for (let w = step; w < 1; w += step) {
+        const c = evaluate([pigs[i], pigs[j]], [w, 1 - w], targetLab);
+        if (!best || c.error < best.error) best = c;
+      }
     }
   }
   return best;
 }
 
-// Best 3-pigment blend over a coarse weight grid (each pigment at least 10%).
-function bestTriple(pigs: Pigment[], target: RGB): Candidate | null {
+// Best 3-pigment mix over a coarse concentration grid (each pigment at least 10%).
+function bestTriple(pigs: Pigment[], targetLab: Lab): Candidate | null {
   let best: Candidate | null = null;
   const step = 0.1;
   for (let i = 0; i < pigs.length; i++) {
@@ -119,9 +146,8 @@ function bestTriple(pigs: Pigment[], target: RGB): Candidate | null {
           for (let w2 = step; w2 < 1 - w1 + 1e-9; w2 += step) {
             const w3 = 1 - w1 - w2;
             if (w3 < step - 1e-9) continue;
-            const weights = [w1, w2, w3];
-            const error = colorDistance(blend(tri, weights), target);
-            if (!best || error < best.error) best = { pigments: tri, weights, error };
+            const c = evaluate(tri, [w1, w2, w3], targetLab);
+            if (!best || c.error < best.error) best = c;
           }
         }
       }
@@ -143,54 +169,75 @@ function toPercentages(cand: Candidate): { p: Pigment; pct: number }[] {
   return rows;
 }
 
-function buildNotes(rows: { p: Pigment; pct: number }[], close: boolean): string {
+function buildNotes(rows: { p: Pigment; pct: number }[], chosen: Candidate, targetLab: Lab): string {
+  const close = chosen.error <= 5; // ΔE ≤ ~5 reads as a good match
+  let note: string;
   if (rows.length === 1) {
-    return close
+    note = close
       ? `${rows[0].p.name} matches this colour closely on its own — use it straight, no mixing needed.`
-      : `${rows[0].p.name} is the nearest single pigment for this colour — use it as your base; mixing the others in this set won't get noticeably closer.`;
+      : `${rows[0].p.name} is the nearest single pigment here — use it as your base; no mix of this set gets noticeably closer.`;
+  } else if (rows.length === 2) {
+    note = `Mix ${rows[0].p.name} and ${rows[1].p.name} — mostly ${rows[0].p.name} (${rows[0].pct}%), adjusted with ${rows[1].p.name} (${rows[1].pct}%). Blend thoroughly and tweak the ratio to taste.`;
+  } else {
+    note = `Start with ${rows[0].p.name} as the base, then work in ${rows
+      .slice(1)
+      .map((r) => r.p.name)
+      .join(" and ")} a little at a time until the tone matches. Add the smaller amounts gradually.`;
   }
-  if (rows.length === 2) {
-    return `Mix ${rows[0].p.name} and ${rows[1].p.name} — mostly ${rows[0].p.name} (${rows[0].pct}%), adjusted with ${rows[1].p.name} (${rows[1].pct}%). Blend thoroughly and tweak the ratio to taste.`;
+
+  // Palette honesty: when even the best mix is well off, say so and point the
+  // way rather than implying the recipe is exact.
+  if (chosen.error > 10) {
+    const mixedL = rgbToLab(chosen.mixedRgb).L;
+    let reach: string;
+    if (targetLab.L < mixedL - 4) {
+      reach = "it's darker than these tubes can reach — add a black or dark neutral (e.g. Payne's grey) to get there.";
+    } else if (targetLab.L > mixedL + 4) {
+      reach = "it's lighter than these tubes can reach — add white to get there.";
+    } else {
+      reach = "this hue sits outside what this set can mix cleanly.";
+    }
+    note += ` Note: this is the closest this palette can get — ${reach}`;
   }
-  return `Start with ${rows[0].p.name} as the base, then work in ${rows
-    .slice(1)
-    .map((r) => r.p.name)
-    .join(" and ")} a little at a time until the tone matches. Add the smaller amounts gradually.`;
+  return note;
 }
 
-// Pick the fewest pigments that get close enough: one if a single pigment
-// already matches, two if a pair lands meaningfully closer, three only if the
-// third still helps. Percentages come from the actual blend that best matches.
+// Find the mix that best reproduces the target colour, using perceptual ΔE and
+// subtractive (Kubelka-Munk) mixing. Picks the fewest pigments that get close
+// enough: one if a single pigment already matches, two if a pair lands
+// meaningfully closer, three only if the third still helps.
 export function mixColors(targetHex: string, brandId: string): PigmentRecipe | null {
   const brand = paints.brands.find((b) => b.id === brandId);
   if (!brand) return null;
 
-  const targetRgb = hexToRgb(targetHex);
-  // Consider the nearest handful of pigments so the combinations stay relevant.
-  const nearest: Pigment[] = brand.colors
-    .map((color) => ({ name: color.name, hex: color.hex, rgb: hexToRgb(color.hex) }))
-    .sort((a, b) => colorDistance(a.rgb, targetRgb) - colorDistance(b.rgb, targetRgb))
-    .slice(0, 6);
+  const targetLab = rgbToLab(hexToRgb(targetHex));
+  // The palette is small, so search all of it rather than pre-filtering by a
+  // (potentially misleading) distance — the pigment needed to darken or shift a
+  // colour is often not one of its nearest neighbours.
+  const pigs: Pigment[] = brand.colors.map((color) => ({
+    name: color.name,
+    hex: color.hex,
+    rgb: hexToRgb(color.hex),
+  }));
+  if (pigs.length === 0) return null;
 
-  if (nearest.length === 0) return null;
+  const single = bestSingle(pigs, targetLab);
+  const pair = pigs.length >= 2 ? bestPair(pigs, targetLab) : null;
+  const triple = pigs.length >= 3 ? bestTriple(pigs, targetLab) : null;
 
-  const single = bestSingle(nearest, targetRgb);
-  const pair = nearest.length >= 2 ? bestPair(nearest, targetRgb) : null;
-  const triple = nearest.length >= 3 ? bestTriple(nearest, targetRgb) : null;
-
-  // Only add another pigment when it cuts the colour error by a worthwhile margin.
-  const IMPROVE_MIN = 8;
+  // Only add another pigment when it improves the match by a just-noticeable
+  // amount (ΔE ≈ 2.5), so simple colours stay simple to mix.
+  const IMPROVE_MIN = 2.5;
   let chosen = single!;
   if (pair && pair.error < chosen.error - IMPROVE_MIN) chosen = pair;
   if (triple && triple.error < chosen.error - IMPROVE_MIN) chosen = triple;
 
   const rows = toPercentages(chosen);
-  const closeMatch = chosen.error <= 15; // RGB distance considered a tight match
 
   return {
     pigments: rows.map((row) => ({ name: row.p.name, hex: row.p.hex, percentage: row.pct })),
-    resultColor: targetHex,
-    mixing_notes: buildNotes(rows, closeMatch),
+    resultColor: rgbToHex(chosen.mixedRgb.r, chosen.mixedRgb.g, chosen.mixedRgb.b),
+    mixing_notes: buildNotes(rows, chosen, targetLab),
   };
 }
 
