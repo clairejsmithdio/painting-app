@@ -1,5 +1,23 @@
 import sharp from 'sharp';
-import paints from '../data/paints.json';
+import paintsData from '../data/paints.json';
+
+// Shape of paints.json. Cast the import so an empty `colors: []` (the stubbed
+// "full" range) doesn't get inferred as never[].
+interface PaintColor { name: string; hex: string; pigment?: string }
+interface PaintRange {
+  id: string;
+  label: string;
+  kind: 'mixing' | 'matching';
+  blurb?: string;
+  available?: boolean;
+  colors: PaintColor[];
+}
+interface PaintBrandData { id: string; label: string; ranges: PaintRange[] }
+const paints = paintsData as unknown as { brands: PaintBrandData[] };
+
+function rangeIsAvailable(r: PaintRange): boolean {
+  return r.available !== false && r.colors.length > 0;
+}
 
 export interface ExtractedColor {
   hex: string;
@@ -206,15 +224,25 @@ function buildNotes(rows: { p: Pigment; pct: number }[], chosen: Candidate, targ
 // subtractive (Kubelka-Munk) mixing. Picks the fewest pigments that get close
 // enough: one if a single pigment already matches, two if a pair lands
 // meaningfully closer, three only if the third still helps.
-export function mixColors(targetHex: string, brandId: string): PigmentRecipe | null {
+export function mixColors(
+  targetHex: string,
+  brandId: string,
+  rangeId?: string
+): PigmentRecipe | null {
   const brand = paints.brands.find((b) => b.id === brandId);
   if (!brand) return null;
+
+  // Pick the requested range, falling back to the brand's first available one.
+  const range =
+    (rangeId ? brand.ranges.find((r) => r.id === rangeId && rangeIsAvailable(r)) : undefined) ||
+    brand.ranges.find(rangeIsAvailable);
+  if (!range) return null;
 
   const targetLab = rgbToLab(hexToRgb(targetHex));
   // The palette is small, so search all of it rather than pre-filtering by a
   // (potentially misleading) distance — the pigment needed to darken or shift a
   // colour is often not one of its nearest neighbours.
-  const pigs: Pigment[] = brand.colors.map((color) => ({
+  const pigs: Pigment[] = range.colors.map((color) => ({
     name: color.name,
     hex: color.hex,
     rgb: hexToRgb(color.hex),
@@ -310,11 +338,21 @@ export async function extractDominantColors(
   });
 }
 
-// Get list of available paint brands
+// Get list of available paint brands, each with its selectable ranges
+// (Essentials mixing set, Full matching range, …).
 export function getAvailableBrands() {
   return paints.brands.map((b) => ({
     id: b.id,
     name: b.label,
-    colorCount: b.colors.length,
+    ranges: b.ranges.map((r) => ({
+      id: r.id,
+      label: r.label,
+      kind: r.kind,
+      blurb: r.blurb ?? '',
+      available: rangeIsAvailable(r),
+      colorCount: r.colors.length,
+    })),
+    // Kept for backwards compatibility with older clients.
+    colorCount: (b.ranges.find(rangeIsAvailable)?.colors.length) ?? 0,
   }));
 }

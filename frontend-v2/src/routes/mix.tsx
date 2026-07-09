@@ -50,6 +50,7 @@ function MixPage() {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [brands, setBrands] = useState<PaintBrand[]>(FALLBACK_BRANDS);
   const [brand, setBrand] = useState<string>(FALLBACK_BRANDS[0].id);
+  const [range, setRange] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<PigmentRecipe | null>(null);
   const [recipes, setRecipes] = useState<Record<string, { recipe: PigmentRecipe; brand: string }>>({});
   const [extracting, setExtracting] = useState(false);
@@ -82,6 +83,14 @@ function MixPage() {
       .catch(() => {});
   }, []);
 
+  // Keep the selected range valid for the current brand — default to its first
+  // available range (Essentials) whenever the brand or brand list changes.
+  useEffect(() => {
+    const b = brands.find((x) => x.id === brand);
+    const available = b?.ranges?.filter((r) => r.available) ?? [];
+    setRange(available.length ? available[0].id : null);
+  }, [brand, brands]);
+
   useEffect(() => {
     if (!file) return;
     let cancelled = false;
@@ -108,7 +117,7 @@ function MixPage() {
     let cancelled = false;
     setMixing(true);
     setRecipe(null);
-    mixColors({ targetHex: selectedHex, brand })
+    mixColors({ targetHex: selectedHex, brand, range: range ?? undefined })
       .then((r) => {
         if (cancelled) return;
         setRecipe(r);
@@ -119,7 +128,7 @@ function MixPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedHex, brand]);
+  }, [selectedHex, brand, range]);
 
   // Build the off-screen sampling canvas from the reference File.
   useEffect(() => {
@@ -391,6 +400,50 @@ function MixPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Range: Essentials (mixing set) vs Full range (matching) */}
+              {(() => {
+                const cur = brands.find((b) => b.id === brand);
+                const ranges = cur?.ranges ?? [];
+                if (ranges.length < 1) return null;
+                const activeRange = ranges.find((r) => r.id === range);
+                return (
+                  <div className="mt-4">
+                    <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                      Range
+                    </div>
+                    <div className="inline-flex gap-1 rounded-xl bg-canvas p-1">
+                      {ranges.map((r) => {
+                        const active = range === r.id;
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => r.available && setRange(r.id)}
+                            disabled={!r.available}
+                            title={r.available ? r.blurb : `${r.label} — coming soon`}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                              active
+                                ? "bg-navy text-white shadow-sm"
+                                : r.available
+                                  ? "text-navy hover:bg-navy/5"
+                                  : "text-navy/30 cursor-not-allowed"
+                            }`}
+                          >
+                            {r.label}
+                            {!r.available && " · soon"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {activeRange?.blurb && (
+                      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                        {activeRange.blurb}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="mt-6 flex items-center gap-3 rounded-xl bg-canvas p-4">
                 <div className="h-14 w-14 rounded-lg shadow-inner" style={{ backgroundColor: selectedHex }} />
                 <div>

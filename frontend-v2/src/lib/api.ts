@@ -26,7 +26,20 @@ export type ExtractedColor = {
   name?: string;
 };
 
-export type PaintBrand = { id: string; name: string };
+export type PaintRange = {
+  id: string;
+  label: string;
+  kind: "mixing" | "matching";
+  blurb?: string;
+  available: boolean;
+  colorCount: number;
+};
+export type PaintBrand = {
+  id: string;
+  name: string;
+  ranges?: PaintRange[];
+  colorCount?: number;
+};
 
 export type PigmentRecipe = {
   targetHex: string;
@@ -81,10 +94,15 @@ export async function getPaintBrands(): Promise<{ brands: PaintBrand[] }> {
 export async function mixColors(payload: {
   targetHex: string;
   brand: string;
+  range?: string;
 }): Promise<PigmentRecipe> {
   return request("/api/painting/mix-colors", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ targetColor: payload.targetHex, brandId: payload.brand }),
+    body: JSON.stringify({
+      targetColor: payload.targetHex,
+      brandId: payload.brand,
+      rangeId: payload.range,
+    }),
   });
 }

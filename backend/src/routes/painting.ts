@@ -20,6 +20,7 @@ interface PaintingRequest {
 interface ColorMixingRequest {
   targetColor: string;
   brandId: string;
+  rangeId?: string;
 }
 
 paintingRoutes.post('/visualize', async (req: Request, res: Response) => {
@@ -109,16 +110,16 @@ paintingRoutes.post('/extract-colors', async (req: Request, res: Response) => {
 
 paintingRoutes.post('/mix-colors', (req: Request, res: Response) => {
   try {
-    const { targetColor, brandId } = req.body as ColorMixingRequest;
+    const { targetColor, brandId, rangeId } = req.body as ColorMixingRequest;
 
     if (!targetColor || !brandId) {
       return res.status(400).json({ error: 'targetColor and brandId are required' });
     }
 
-    const recipe = mixColors(targetColor, brandId);
+    const recipe = mixColors(targetColor, brandId, rangeId);
 
     if (!recipe) {
-      return res.status(404).json({ error: 'Brand not found' });
+      return res.status(404).json({ error: 'Brand or range not found' });
     }
 
     // Flattened to match the frontend PigmentRecipe contract
