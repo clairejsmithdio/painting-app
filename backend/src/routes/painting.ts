@@ -75,21 +75,27 @@ paintingRoutes.get('/styles', (req: Request, res: Response) => {
   });
 });
 
-paintingRoutes.post('/extract-colors', (req: Request, res: Response) => {
+paintingRoutes.post('/extract-colors', async (req: Request, res: Response) => {
   try {
-    const { imageBase64 } = req.body as { imageBase64: string };
+    let { imageBase64 } = req.body as { imageBase64: string };
 
     if (!imageBase64) {
       return res.status(400).json({ error: 'imageBase64 is required' });
     }
 
+    // Strip data URI prefix if present (data:image/...;base64,...)
+    if (imageBase64.startsWith('data:')) {
+      imageBase64 = imageBase64.split(',')[1] || imageBase64;
+    }
+
     const imageBuffer = Buffer.from(imageBase64, 'base64');
-    const colors = extractDominantColors(imageBuffer, 5);
+    const colors = await extractDominantColors(imageBuffer, 5);
 
     res.json({
       colors: colors.map((c) => ({
         hex: c.hex,
         rgb: c.rgb,
+        percentage: c.percentage,
       })),
     });
   } catch (error) {
@@ -115,10 +121,13 @@ paintingRoutes.post('/mix-colors', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Brand not found' });
     }
 
+    // Flattened to match the frontend PigmentRecipe contract
+    // ({ targetHex, brand, pigments, instructions }).
     res.json({
-      targetColor,
+      targetHex: targetColor,
       brand: brandId,
-      recipe,
+      pigments: recipe.pigments,
+      instructions: recipe.mixing_notes,
     });
   } catch (error) {
     console.error('Color mixing error:', error);

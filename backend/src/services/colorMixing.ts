@@ -1,13 +1,16 @@
+import sharp from 'sharp';
 import paints from '../data/paints.json';
 
 export interface ExtractedColor {
   hex: string;
   rgb: { r: number; g: number; b: number };
+  percentage?: number;
 }
 
 export interface PigmentRecipe {
   pigments: Array<{
     name: string;
+    hex: string;
     percentage: number;
   }>;
   resultColor: string;
@@ -88,6 +91,7 @@ export function mixColors(
   const recipe: PigmentRecipe = {
     pigments: top3.map((c) => ({
       name: c.name,
+      hex: c.hex,
       percentage: Math.round(((totalDistance - c.distance) / totalDistance) * 100),
     })),
     resultColor: targetHex,
@@ -104,29 +108,80 @@ export function mixColors(
   return recipe;
 }
 
-// Extract dominant colors from image (simplified version)
-export function extractDominantColors(
+// Extract the dominant colours from an image using sharp.
+// Downscales the image, buckets pixels by reduced colour depth, then greedily
+// picks the most frequent buckets while skipping ones too similar to an
+// already-chosen colour so the returned palette stays varied.
+export async function extractDominantColors(
   imageBuffer: Buffer,
   colorCount: number = 5
-): ExtractedColor[] {
-  // For MVP, return a set of test colors
-  // In production, this would use image processing library like jimp or sharp
-  const testColors = [
-    { hex: '#E74C3C', rgb: { r: 231, g: 76, b: 60 } },
-    { hex: '#3498DB', rgb: { r: 52, g: 152, b: 219 } },
-    { hex: '#F39C12', rgb: { r: 243, g: 156, b: 18 } },
-    { hex: '#2ECC71', rgb: { r: 46, g: 204, b: 113 } },
-    { hex: '#9B59B6', rgb: { r: 155, g: 89, b: 182 } },
-  ];
+): Promise<ExtractedColor[]> {
+  const { data, info } = await sharp(imageBuffer)
+    .resize(96, 96, { fit: 'inside' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  return testColors.slice(0, colorCount);
+  const channels = info.channels; // 3 (RGB) after removeAlpha
+  type Bucket = { r: number; g: number; b: number; count: number };
+  const buckets = new Map<number, Bucket>();
+
+  for (let i = 0; i + 2 < data.length; i += channels) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    // Reduce to 5 bits/channel (32 levels) so near-identical pixels group.
+    const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.r += r;
+      bucket.g += g;
+      bucket.b += b;
+      bucket.count++;
+    } else {
+      buckets.set(key, { r, g, b, count: 1 });
+    }
+  }
+
+  const sorted = [...buckets.values()].sort((a, b) => b.count - a.count);
+  const total = sorted.reduce((sum, b) => sum + b.count, 0) || 1;
+
+  const avg = (bucket: Bucket) => ({
+    r: Math.round(bucket.r / bucket.count),
+    g: Math.round(bucket.g / bucket.count),
+    b: Math.round(bucket.b / bucket.count),
+  });
+
+  const MIN_DISTANCE = 40; // Euclidean RGB distance between kept colours
+  const chosen: Bucket[] = [];
+  for (const bucket of sorted) {
+    const c = avg(bucket);
+    const tooClose = chosen.some((k) => {
+      const kc = avg(k);
+      return Math.hypot(c.r - kc.r, c.g - kc.g, c.b - kc.b) < MIN_DISTANCE;
+    });
+    if (!tooClose) chosen.push(bucket);
+    if (chosen.length >= colorCount) break;
+  }
+
+  // Very flat image (everything merged) — fall back to the top buckets.
+  const finalBuckets = chosen.length ? chosen : sorted.slice(0, colorCount);
+
+  return finalBuckets.map((bucket) => {
+    const c = avg(bucket);
+    return {
+      hex: rgbToHex(c.r, c.g, c.b),
+      rgb: c,
+      percentage: Math.round((bucket.count / total) * 100),
+    };
+  });
 }
 
 // Get list of available paint brands
 export function getAvailableBrands() {
   return paints.brands.map((b) => ({
     id: b.id,
-    label: b.label,
+    name: b.label,
     colorCount: b.colors.length,
   }));
 }
